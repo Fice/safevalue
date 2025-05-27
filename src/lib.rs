@@ -98,7 +98,9 @@ macro_rules! unsafe_marker {
                     unsafe { SafeHolder::vouch() }
                 )
             }
+            #[allow(dead_code)]
             pub fn trust(&self) -> bool { true }
+            #[allow(dead_code)]
             pub fn take(self) -> bool { true }
         }
         impl Copy for $i {}
