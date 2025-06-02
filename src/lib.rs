@@ -25,9 +25,9 @@ impl<T: PartialEq, const WRITE_ONCE: bool> PartialEq for SafeHolder<T, WRITE_ONC
 impl<T, const WRITE_ONCE: bool, const READ_ONCE: bool>
     SafeHolder<T, WRITE_ONCE, READ_ONCE>
 {
-    pub unsafe fn vouch_for<Y: Into<T>>(data: Y) -> Self {
+    pub const unsafe fn vouch_for(data: T) -> Self {
         Self {
-            data:   data.into(),
+            data:   data,
             sealed: core::marker::PhantomData::<Sealed> {},
         }
     }
@@ -37,7 +37,7 @@ impl<T, const WRITE_ONCE: bool, const READ_ONCE: bool>
 impl<const WRITE_ONCE: bool, const READ_ONCE: bool>
     SafeHolder<(), WRITE_ONCE, READ_ONCE>
 {
-    pub unsafe fn vouch() -> Self {
+    pub const unsafe fn vouch() -> Self {
         Self {
             data:   (),
             sealed: core::marker::PhantomData::<Sealed> {},
@@ -45,8 +45,8 @@ impl<const WRITE_ONCE: bool, const READ_ONCE: bool>
     }
 }
 impl<T, const READ_ONCE: bool> SafeHolder<T, false, READ_ONCE> {
-    pub unsafe fn set<Y: Into<T>>(&mut self, data: Y) {
-        self.data = data.into();
+    pub unsafe fn set(&mut self, data: T) {
+        self.data = data;
     }
 }
 impl<T, const WRITE_ONCE: bool> AsRef<T> for SafeHolder<T, WRITE_ONCE, false> {
