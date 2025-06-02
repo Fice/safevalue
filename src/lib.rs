@@ -157,6 +157,13 @@ macro_rules! unsafe_marker {
             }
         }
 
+        impl core::ops::Deref for $i
+        {
+            type Target = safevalue::SafeHolder<(), true, false>;
+
+            // Required method
+            fn deref(&self) -> &Self::Target { &self.0 }
+        }
     }
 }
 
