@@ -74,12 +74,6 @@ struct Sealed {}
 /// A marker type that you could use to denote that something has happened without any associated data.
 ///
 /// It's best to typedef it
-/// ```
-/// 
-/// let answer = my_crate::add_one(arg);
-///
-/// assert_eq!(6, answer);
-/// ```
 pub type SafeMarker = SafeHolder<()>;
 
 
