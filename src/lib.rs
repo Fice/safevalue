@@ -3,6 +3,7 @@
 #![no_std]
 
 #[derive(Debug)]
+#[repr(transparent)]
 pub struct SafeHolder<T, const WRITE_ONCE: bool=true, const READ_ONCE: bool=true> {
     data:   T,
     sealed: core::marker::PhantomData<Sealed>,
@@ -25,6 +26,7 @@ impl<T: PartialEq, const WRITE_ONCE: bool> PartialEq for SafeHolder<T, WRITE_ONC
 impl<T, const WRITE_ONCE: bool, const READ_ONCE: bool>
     SafeHolder<T, WRITE_ONCE, READ_ONCE>
 {
+    #[inline(always)]
     pub const unsafe fn vouch_for(data: T) -> Self {
         Self {
             data:   data,
@@ -32,11 +34,13 @@ impl<T, const WRITE_ONCE: bool, const READ_ONCE: bool>
         }
     }
 
+    #[inline(always)]
     pub fn take(self) -> T { self.data }
 }
 impl<const WRITE_ONCE: bool, const READ_ONCE: bool>
     SafeHolder<(), WRITE_ONCE, READ_ONCE>
 {
+    #[inline(always)]
     pub const unsafe fn vouch() -> Self {
         Self {
             data:   (),
@@ -45,6 +49,7 @@ impl<const WRITE_ONCE: bool, const READ_ONCE: bool>
     }
 }
 impl<T, const READ_ONCE: bool> SafeHolder<T, false, READ_ONCE> {
+    #[inline(always)]
     pub unsafe fn set(&mut self, data: T) {
         self.data = data;
     }
@@ -87,14 +92,17 @@ macro_rules! unsafe_marker {
         $v struct $i(SafeHolder<(), true, false>);
 
         impl $i {
+            #[inline(always)]
             pub unsafe fn vouch() -> Self {
                 Self(
                     unsafe { SafeHolder::vouch() }
                 )
             }
             #[allow(dead_code)]
+            #[inline(always)]
             pub fn trust(&self) -> bool { true }
             #[allow(dead_code)]
+            #[inline(always)]
             pub fn take(self) -> bool { true }
         }
         impl Copy for $i {}
