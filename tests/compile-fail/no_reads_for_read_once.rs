@@ -20,8 +20,8 @@ pub fn main() {
     let tf2 = tf.clone();
     let ff_ref = ff.as_ref();
     let tf_ref = tf.as_ref();
-    let comparison = ff == FF::vouch_for(true);
-    let comparison2 = tf == TF::vouch_for(12);
+    let comparison = ff == unsafe { FF::vouch_for(true) };
+    let comparison2 = tf == unsafe { TF::vouch_for(12.0) };
     let ff_deref = *ff;
     let tf_deref = *tf;
 
@@ -35,9 +35,9 @@ pub fn main() {
     //~^ 34:21: 34:27: no method named `as_ref` found for struct `SafeHolder` in the current scope [E0599] 
     let tt_ref = tt.as_ref();
     //~^ 36:21: 36:27: no method named `as_ref` found for struct `SafeHolder` in the current scope [E0599]
-    let comparison = ft == FT::vouch_for('b');
+    let comparison = ft == unsafe { FT::vouch_for('b') };
     //~^ 38:25: 38:27: binary operation `==` cannot be applied to type `SafeHolder<char, false>` [E0369]
-    let comparison = tt == TT::vouch_for(true);
+    let comparison = tt == unsafe { TT::vouch_for(26u32) };
     //~^ 40:25: 40:27: binary operation `==` cannot be applied to type `SafeHolder<u32>` [E0369]
     let ft_deref = *ft;
     //~^ 42:20: 42:23: type `SafeHolder<char, false>` cannot be dereferenced [E0614]
