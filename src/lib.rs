@@ -82,6 +82,51 @@ struct Sealed {}
 pub type SafeMarker = SafeHolder<()>;
 
 
+mod safevalue {
+    #[allow(unused_imports)]
+    pub use super::SafeHolder;
+}
+
+
+pub fn rely_on<T, const W: bool, const R: bool>(_value: &SafeHolder<T, W, R>) {}
+pub fn exhaust<T, const W: bool, const R: bool>(_value: &SafeHolder<T, W, R>) {}
+
+
+#[macro_export]
+macro_rules! unsafe_marker_no_copy {
+    (  $(#[doc = $doc:expr]) * $v:vis $i:ident ) => {
+        $(
+            #[doc = $doc]
+        )*
+        $v struct $i(safevalue::SafeHolder<(), true, false>);
+
+        impl $i {
+            #[inline(always)]
+            pub const unsafe fn vouch() -> Self {
+                Self(
+                    unsafe { safevalue::SafeHolder::vouch() }
+                )
+            }
+            #[allow(dead_code)]
+            #[inline(always)]
+            pub const fn trust(&self) -> bool { true }
+            #[allow(dead_code)]
+            #[inline(always)]
+            pub const fn take(self) -> bool { true }
+        }
+
+
+        impl core::ops::Deref for $i
+        {
+            type Target = safevalue::SafeHolder<(), true, false>;
+
+            // Required method
+            fn deref(&self) -> &Self::Target { &self.0 }
+        }
+
+
+    }
+}
 
 #[macro_export]
 macro_rules! unsafe_marker {
@@ -89,13 +134,13 @@ macro_rules! unsafe_marker {
         $(
             #[doc = $doc]
         )*
-        $v struct $i(SafeHolder<(), true, false>);
+        $v struct $i(safevalue::SafeHolder<(), true, false>);
 
         impl $i {
             #[inline(always)]
             pub unsafe fn vouch() -> Self {
                 Self(
-                    unsafe { SafeHolder::vouch() }
+                    unsafe { safevalue::SafeHolder::vouch() }
                 )
             }
             #[allow(dead_code)]
@@ -146,6 +191,12 @@ macro_rules! unsafe_marker {
         let safe_array = unsafe { SafeArray::vouch_for([true, false, false, true]) };
         let safe_custom = unsafe {SafeCustom::vouch_for(Custom { c: 'a', b: false }) };
 
+
+        
+        rely_on(&safe_u64);
+        rely_on(&safe_f32);
+        rely_on(&safe_array);
+        rely_on(&safe_custom);
 
         //Taking is always safe
         assert_eq!(safe_u64.take(), 12u64);
@@ -215,8 +266,8 @@ macro_rules! unsafe_marker {
     #[test]
     pub fn test_marker() {
         let marker = unsafe { Test::vouch() };
-        let _marker2 = unsafe { Test2::vouch() };
-        let marker2 = unsafe { Test3::vouch() };
+        let marker2 = unsafe { Test2::vouch() };
+        let marker3 = unsafe { Test3::vouch() };
         let marker4 = unsafe { Test4::vouch() };
     
         marker.trust();
@@ -227,7 +278,8 @@ macro_rules! unsafe_marker {
         if marker2.trust() {
            // we can use this in if
         }
-    
+        
+        rely_on(&marker4);
     }
 }
 
