@@ -63,7 +63,7 @@ impl<T, const WRITE_ONCE: bool, const READ_ONCE: bool>
     #[inline(always)]
     pub const unsafe fn vouch_for(data: T) -> Self {
         Self {
-            data:   data,
+            data,
             sealed: core::marker::PhantomData::<Sealed> {},
         }
     }
