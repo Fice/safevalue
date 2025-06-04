@@ -89,7 +89,7 @@ mod safevalue {
 
 
 pub fn rely_on<T, const W: bool, const R: bool>(_value: &SafeHolder<T, W, R>) {}
-pub fn exhaust<T, const W: bool, const R: bool>(_value: &SafeHolder<T, W, R>) {}
+pub fn exhaust<T, const W: bool, const R: bool>(_value: SafeHolder<T, W, R>) {}
 
 
 #[macro_export]
