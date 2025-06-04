@@ -21,6 +21,8 @@
 #![warn(missing_docs)]
 #![deny(unsafe_op_in_unsafe_fn)]
 
+use core::fmt::{Binary, LowerHex, UpperHex};
+
 #[derive(Debug)]
 #[repr(transparent)]
 pub struct SafeHolder<
@@ -119,6 +121,42 @@ impl<T, const WRITE_ONCE: bool> core::ops::Deref
     // Required method
     fn deref(&self) -> &Self::Target { &self.data }
 }
+
+impl<T: Ord, const WRITE_ONCE: bool> Ord for SafeHolder<T, WRITE_ONCE, false> {
+    fn cmp(&self, other: &Self) -> core::cmp::Ordering {
+        self.data.cmp(&other.data)
+    }
+}
+impl<T: PartialOrd, const WRITE_ONCE: bool> PartialOrd
+    for SafeHolder<T, WRITE_ONCE, false>
+{
+    fn partial_cmp(&self, other: &Self) -> Option<core::cmp::Ordering> {
+        self.data.partial_cmp(&other.data)
+    }
+}
+
+impl<T: UpperHex, const WRITE_ONCE: bool> UpperHex
+    for SafeHolder<T, WRITE_ONCE, false>
+{
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        UpperHex::fmt(&self.data, f)
+    }
+}
+impl<T: LowerHex, const WRITE_ONCE: bool> LowerHex
+    for SafeHolder<T, WRITE_ONCE, false>
+{
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        LowerHex::fmt(&self.data, f)
+    }
+}
+impl<T: Binary, const WRITE_ONCE: bool> Binary
+    for SafeHolder<T, WRITE_ONCE, false>
+{
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        Binary::fmt(&self.data, f)
+    }
+}
+
 
 
 /// Non-public struct that is used to prevent the use of ['SafeHolder'] that
