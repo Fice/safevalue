@@ -156,9 +156,11 @@ struct Sealed {}
 //pub type SafeMarker = SafeHolder<()>;
 
 
+// Without this, unit testing the macro fails, because safevale::SafeHolder not
+// found.
 mod safevalue {
     #[allow(unused_imports)]
-    pub use super::SafeHolder;
+    pub(crate) use super::SafeHolder;
 }
 
 #[macro_export]
