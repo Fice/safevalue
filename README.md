@@ -6,6 +6,10 @@
 # Dependencies
 
 safevalue is dependency free.## License
+### Rust
+
+safevalue works on stable rust and requires rust version `1.85` (2024 Edition).
+
 
 Licensed under either of:
 

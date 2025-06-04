@@ -12,7 +12,7 @@ documentation = "https://docs.rs/safevalue"
 homepage = "https://crates.io/crates/safevalue"
 description = "A value based approach to uphold SAFETY requirements for unsafe Rust code."
 exclude = [".github"]
-
+rust-version = "1.85"
 [dependencies]
 #no dependencies
 

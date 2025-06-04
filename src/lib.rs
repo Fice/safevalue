@@ -9,9 +9,6 @@
 //! # Usage
 //!
 //!
-//!
-//! safevalue works on stable rust.
-//!
 //! # No STD
 //!
 //! This crate is no_std as well as no_alloc, because it does not need them. If this is ever to change, any alloc or std will be hidden behind appropriate feature flags.
