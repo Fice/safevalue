@@ -35,26 +35,10 @@ pub struct SafeHolder<
     /// Sealed is non public, so only functions within this crate can create a
     /// SafeHolder. All constructors are 'unsafe' making it impossible to
     /// create a SafeHolder without unsafe
+    #[doc(hidden)]
     sealed: core::marker::PhantomData<Sealed>,
 }
 
-
-/// Copy is only implemented for types that are not 'READ_ONCE'
-impl<T: Copy, const WRITE_ONCE: bool> Copy
-    for SafeHolder<T, WRITE_ONCE, false>
-{
-}
-/// Clone is only implemented for types that are not 'READ_ONCE'
-impl<T: Clone, const WRITE_ONCE: bool> Clone
-    for SafeHolder<T, WRITE_ONCE, false>
-{
-    fn clone(&self) -> Self {
-        Self {
-            data:   self.data.clone(),
-            sealed: core::marker::PhantomData::<Sealed> {},
-        }
-    }
-}
 
 impl<T: Eq, const WRITE_ONCE: bool> Eq for SafeHolder<T, WRITE_ONCE, false> {}
 impl<T: PartialEq, const WRITE_ONCE: bool> PartialEq
@@ -178,7 +162,7 @@ mod safevalue {
 }
 
 #[macro_export]
-macro_rules! unsafe_marker_no_copy {
+macro_rules! unsafe_marker {
     (  $(#[doc = $doc:expr]) * $v:vis $i:ident ) => {
         $(
             #[doc = $doc]
@@ -213,44 +197,6 @@ macro_rules! unsafe_marker_no_copy {
     }
 }
 
-#[macro_export]
-macro_rules! unsafe_marker {
-    (  $(#[doc = $doc:expr]) * $v:vis $i:ident ) => {
-        $(
-            #[doc = $doc]
-        )*
-        $v struct $i(safevalue::SafeHolder<(), true, false>);
-
-        impl $i {
-            #[inline(always)]
-            pub unsafe fn vouch() -> Self {
-                Self(
-                    unsafe { safevalue::SafeHolder::vouch() }
-                )
-            }
-            #[allow(dead_code)]
-            #[inline(always)]
-            pub fn trust(&self) -> bool { true }
-            #[allow(dead_code)]
-            #[inline(always)]
-            pub fn take(self) -> bool { true }
-        }
-        impl Copy for $i {}
-        impl Clone for $i {
-            fn clone(&self) -> Self {
-                Self(self.0.clone())
-            }
-        }
-
-        impl core::ops::Deref for $i
-        {
-            type Target = safevalue::SafeHolder<(), true, false>;
-
-            // Required method
-            fn deref(&self) -> &Self::Target { &self.0 }
-        }
-    }
-}
 
 #[cfg(test)]
 mod tests {
@@ -267,14 +213,6 @@ mod tests {
     type SafeF32 = SafeHolder<f32, true, false>;
     type SafeArray = SafeHolder<[bool; 4], false, true>;
     type SafeCustom = SafeHolder<Custom, true, true>;
-
-    #[test]
-    fn marker_works() {
-        let a = unsafe { SafeMarker::vouch() };
-        let b = unsafe { SafeMarker::vouch_for(()) };
-
-        assert_eq!(a.take(), b.take());
-    }
 
 
     #[test]
@@ -340,16 +278,6 @@ mod tests {
         //Make sure deref fails to compile for READ_ONCE types
         assert_eq!(*safe_u64, 97u64);
         assert_eq!(*safe_f32, 0.5);
-    }
-
-    #[test]
-    fn test_clone() {
-        let safe_u64 = unsafe { SafeU64::vouch_for(12u64) };
-        let safe_f32 = unsafe { SafeF32::vouch_for(0.5) };
-
-        //Make sure clone/copy fails to compile for READ_ONCE types
-        assert_eq!(safe_u64, safe_u64.clone());
-        assert_eq!(safe_f32, safe_f32.clone());
     }
 
     unsafe_marker!(Test);

@@ -1,19 +1,19 @@
 extern crate safevalue;
-use safevalue::SafeHolder;
+use safevalue::{unsafe_marker, SafeHolder};
 
 
 type TF = SafeHolder<f32, true, false>;
 type FF = SafeHolder<bool, false, false>;
 type TT = SafeHolder<u32, true, true>;
 type FT = SafeHolder<char, false, true>;
-
+unsafe_marker!(pub SafeMarker);
 
 pub fn main() {
     let mut ff = unsafe { FF::vouch_for(true) };
     let mut tf = unsafe { TF::vouch_for(12.0) };
     let mut ft = unsafe { FT::vouch_for('a') };
     let mut tt = unsafe { TT::vouch_for(37u32) };
-    let mut marker = unsafe { safevalue::SafeMarker::vouch() };
+    let mut marker = unsafe { SafeMarker::vouch() };
 
     //these reads should work (because types are read_once=false)
     let ff2 = ff.clone();
