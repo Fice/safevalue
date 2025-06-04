@@ -21,8 +21,6 @@
 #![warn(missing_docs)]
 #![deny(unsafe_op_in_unsafe_fn)]
 
-use core::fmt::{Binary, LowerHex, UpperHex};
-
 #[derive(Debug)]
 #[repr(transparent)]
 pub struct SafeHolder<
@@ -82,6 +80,7 @@ impl<T, const READ_ONCE: bool> SafeHolder<T, false, READ_ONCE> {
     #[inline(always)]
     pub unsafe fn set(&mut self, data: T) { self.data = data; }
 }
+
 impl<T, const WRITE_ONCE: bool> AsRef<T> for SafeHolder<T, WRITE_ONCE, false> {
     fn as_ref(&self) -> &T {
         use core::ops::Deref;
@@ -117,25 +116,25 @@ impl<T: PartialOrd, const WRITE_ONCE: bool> PartialOrd
     }
 }
 
-impl<T: UpperHex, const WRITE_ONCE: bool> UpperHex
+impl<T: core::fmt::UpperHex, const WRITE_ONCE: bool> core::fmt::UpperHex
     for SafeHolder<T, WRITE_ONCE, false>
 {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        UpperHex::fmt(&self.data, f)
+        core::fmt::UpperHex::fmt(&self.data, f)
     }
 }
-impl<T: LowerHex, const WRITE_ONCE: bool> LowerHex
+impl<T: core::fmt::LowerHex, const WRITE_ONCE: bool> core::fmt::LowerHex
     for SafeHolder<T, WRITE_ONCE, false>
 {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        LowerHex::fmt(&self.data, f)
+        core::fmt::LowerHex::fmt(&self.data, f)
     }
 }
-impl<T: Binary, const WRITE_ONCE: bool> Binary
+impl<T: core::fmt::Binary, const WRITE_ONCE: bool> core::fmt::Binary
     for SafeHolder<T, WRITE_ONCE, false>
 {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        Binary::fmt(&self.data, f)
+        core::fmt::Binary::fmt(&self.data, f)
     }
 }
 
