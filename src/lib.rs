@@ -1,6 +1,8 @@
 // We don't need std at all, so we might as well be no_std
 // We can still use std in integration tests, so any tests that would require it can still do so.
 #![no_std]
+#![warn(missing_docs)]
+#![deny(unsafe_op_in_unsafe_fn)]
 
 #[derive(Debug)]
 #[repr(transparent)]
