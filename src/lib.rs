@@ -1,18 +1,21 @@
 //! safevalue
 //! =========
-//!
-//!
+//! 
 //! TODO: Links
 //! # Purpose
 //!
 //!
 //! # Usage
+
 //!
+
 //!
-//! # No STD
-//!
-//! This crate is no_std as well as no_alloc, because it does not need them. If this is ever to change, any alloc or std will be hidden behind appropriate feature flags.
-//!
+//! # Dependencies
+//! 
+//! safevalue is dependency free. It does however have dev-dependencies used for testing.
+//! 
+
+
 
 // We don't need std at all, so we might as well be no_std
 // We can still use std in integration tests, so any tests that would require it can still do so.

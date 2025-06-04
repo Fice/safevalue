@@ -3,13 +3,30 @@
 [![Documentation](https://docs.rs/safevalue/badge.svg)](https://docs.rs/safevalue)
 
 
-# Dependencies
 
-safevalue is dependency free.## License
+## Usage
+
+Add safevalue to your project e.g. via ```cargo add safevalue```.
+
+Then:
+
+```rust
+use hashbrown::HashMap;
+
+let mut map = HashMap::new();
+map.insert(1, "one");
+```
+
 ### Rust
 
 safevalue works on stable rust and requires rust version `1.85` (2024 Edition).
 
+### No STD
+
+This crate is `#[no_std]` as well as no `alloc`, because it does not need them. 
+If this is ever to change, `alloc` or `std` will be hidden behind appropriate feature flags.
+
+## License
 
 Licensed under either of:
 
