@@ -10,45 +10,56 @@
 //!
 
 //!
-//! # Dependencies
-//! 
-//! safevalue is dependency free. It does however have dev-dependencies used for testing.
-//! 
 
 
-#![cfg_attr(doctest, doc = include_str!("../README.md"))] //make sure we run the code in the readme.md during testing
+#![cfg_attr(doctest, doc = include_str!("../README.md"))]
+//make sure we run the code in the readme.md during testing
 
 // We don't need std at all, so we might as well be no_std
-// We can still use std in integration tests, so any tests that would require it can still do so.
+// We can still use std in integration tests, so any tests that would require it
+// can still do so.
 #![no_std]
 #![warn(missing_docs)]
 #![deny(unsafe_op_in_unsafe_fn)]
 
 #[derive(Debug)]
 #[repr(transparent)]
-pub struct SafeHolder<T, const WRITE_ONCE: bool=true, const READ_ONCE: bool=true> {
+pub struct SafeHolder<
+    T,
+    const WRITE_ONCE: bool = true,
+    const READ_ONCE: bool = true,
+> {
     /// Holds the actual data we are vouching for.
     data:   T,
-    /// Sealed is non public, so only functions within this crate can create a SafeHolder.
-    /// All constructors are 'unsafe' making it impossible to create a SafeHolder without unsafe
+    /// Sealed is non public, so only functions within this crate can create a
+    /// SafeHolder. All constructors are 'unsafe' making it impossible to
+    /// create a SafeHolder without unsafe
     sealed: core::marker::PhantomData<Sealed>,
 }
 
 
 /// Copy is only implemented for types that are not 'READ_ONCE'
-impl<T: Copy, const WRITE_ONCE: bool> Copy for SafeHolder<T, WRITE_ONCE, false> {}
+impl<T: Copy, const WRITE_ONCE: bool> Copy
+    for SafeHolder<T, WRITE_ONCE, false>
+{
+}
 /// Clone is only implemented for types that are not 'READ_ONCE'
-impl<T: Clone, const WRITE_ONCE: bool> Clone for SafeHolder<T, WRITE_ONCE, false> {
+impl<T: Clone, const WRITE_ONCE: bool> Clone
+    for SafeHolder<T, WRITE_ONCE, false>
+{
     fn clone(&self) -> Self {
-        Self { data: self.data.clone(), sealed: core::marker::PhantomData::<Sealed> {} }
+        Self {
+            data:   self.data.clone(),
+            sealed: core::marker::PhantomData::<Sealed> {},
+        }
     }
 }
 
 impl<T: Eq, const WRITE_ONCE: bool> Eq for SafeHolder<T, WRITE_ONCE, false> {}
-impl<T: PartialEq, const WRITE_ONCE: bool> PartialEq for SafeHolder<T, WRITE_ONCE, false> {
-    fn eq(&self, other: &Self) -> bool {
-        self.data == other.data
-    }
+impl<T: PartialEq, const WRITE_ONCE: bool> PartialEq
+    for SafeHolder<T, WRITE_ONCE, false>
+{
+    fn eq(&self, other: &Self) -> bool { self.data == other.data }
 }
 
 impl<T, const WRITE_ONCE: bool, const READ_ONCE: bool>
@@ -92,9 +103,7 @@ impl<const WRITE_ONCE: bool, const READ_ONCE: bool>
 }
 impl<T, const READ_ONCE: bool> SafeHolder<T, false, READ_ONCE> {
     #[inline(always)]
-    pub unsafe fn set(&mut self, data: T) {
-        self.data = data;
-    }
+    pub unsafe fn set(&mut self, data: T) { self.data = data; }
 }
 impl<T, const WRITE_ONCE: bool> AsRef<T> for SafeHolder<T, WRITE_ONCE, false> {
     fn as_ref(&self) -> &T {
@@ -113,12 +122,14 @@ impl<T, const WRITE_ONCE: bool> core::ops::Deref
 }
 
 
-/// Non-public struct that is used to prevent the use of ['SafeHolder'] that circumvents the creation of the marker without the 'unsafe' functions
+/// Non-public struct that is used to prevent the use of ['SafeHolder'] that
+/// circumvents the creation of the marker without the 'unsafe' functions
 #[derive(Debug)]
 struct Sealed {}
 
 
-/// A marker type that you could use to denote that something has happened without any associated data.
+/// A marker type that you could use to denote that something has happened
+/// without any associated data.
 ///
 /// It's best to typedef it
 pub type SafeMarker = SafeHolder<()>;
@@ -204,7 +215,8 @@ macro_rules! unsafe_marker {
     }
 }
 
-#[cfg(test)] mod tests {
+#[cfg(test)]
+mod tests {
     use super::*;
 
 
@@ -221,8 +233,8 @@ macro_rules! unsafe_marker {
 
     #[test]
     fn marker_works() {
-        let a = unsafe {SafeMarker::vouch() };
-        let b = unsafe {SafeMarker::vouch_for(()) };
+        let a = unsafe { SafeMarker::vouch() };
+        let b = unsafe { SafeMarker::vouch_for(()) };
 
         assert_eq!(a.take(), b.take());
     }
@@ -230,13 +242,15 @@ macro_rules! unsafe_marker {
 
     #[test]
     fn new_and_take_works() {
-        let safe_u64 = unsafe {SafeU64::vouch_for(12u64) };
-        let safe_f32 = unsafe {SafeF32::vouch_for(0.5) };
-        let safe_array = unsafe { SafeArray::vouch_for([true, false, false, true]) };
-        let safe_custom = unsafe {SafeCustom::vouch_for(Custom { c: 'a', b: false }) };
+        let safe_u64 = unsafe { SafeU64::vouch_for(12u64) };
+        let safe_f32 = unsafe { SafeF32::vouch_for(0.5) };
+        let safe_array =
+            unsafe { SafeArray::vouch_for([true, false, false, true]) };
+        let safe_custom =
+            unsafe { SafeCustom::vouch_for(Custom { c: 'a', b: false }) };
 
 
-        
+
         safe_u64.rely_on();
         safe_f32.rely_on();
         safe_array.rely_on();
@@ -251,24 +265,31 @@ macro_rules! unsafe_marker {
 
     #[test]
     fn as_ref_when_readable() {
-        let safe_u64 = unsafe {SafeU64::vouch_for(0u64) };
-        let safe_f32 = unsafe {SafeF32::vouch_for(0.5) };
-        let _safe_array = unsafe { SafeArray::vouch_for([true, false, false, true]) };
-        let _safe_custom = unsafe {SafeCustom::vouch_for(Custom { c: 'a', b: false }) };
+        let safe_u64 = unsafe { SafeU64::vouch_for(0u64) };
+        let safe_f32 = unsafe { SafeF32::vouch_for(0.5) };
+        let _safe_array =
+            unsafe { SafeArray::vouch_for([true, false, false, true]) };
+        let _safe_custom =
+            unsafe { SafeCustom::vouch_for(Custom { c: 'a', b: false }) };
 
 
         //ref is available and works when READ_ONCE is false
         assert_eq!(*safe_u64.as_ref(), 0u64);
         assert_eq!(*safe_f32.as_ref(), 0.5);
     }
-    
+
     #[test]
     fn settable() {
-        let mut safe_u64 = unsafe {SafeU64::vouch_for(12u64) };
-        let mut safe_array = unsafe { SafeArray::vouch_for([true, false, false, true]) };
+        let mut safe_u64 = unsafe { SafeU64::vouch_for(12u64) };
+        let mut safe_array =
+            unsafe { SafeArray::vouch_for([true, false, false, true]) };
 
-        unsafe { safe_u64.set(23u64); }
-        unsafe { safe_array.set([true, true, false, false]); }
+        unsafe {
+            safe_u64.set(23u64);
+        }
+        unsafe {
+            safe_array.set([true, true, false, false]);
+        }
 
         assert_eq!(safe_u64.take(), 23u64);
         assert_eq!(safe_array.take(), [true, true, false, false]);
@@ -276,8 +297,8 @@ macro_rules! unsafe_marker {
 
     #[test]
     fn test_deref() {
-        let safe_u64 = unsafe {SafeU64::vouch_for(97u64) };
-        let safe_f32 = unsafe {SafeF32::vouch_for(0.5) };
+        let safe_u64 = unsafe { SafeU64::vouch_for(97u64) };
+        let safe_f32 = unsafe { SafeF32::vouch_for(0.5) };
 
         //Make sure deref fails to compile for READ_ONCE types
         assert_eq!(*safe_u64, 97u64);
@@ -286,8 +307,8 @@ macro_rules! unsafe_marker {
 
     #[test]
     fn test_clone() {
-        let safe_u64 = unsafe {SafeU64::vouch_for(12u64) };
-        let safe_f32 = unsafe {SafeF32::vouch_for(0.5) };
+        let safe_u64 = unsafe { SafeU64::vouch_for(12u64) };
+        let safe_f32 = unsafe { SafeF32::vouch_for(0.5) };
 
         //Make sure clone/copy fails to compile for READ_ONCE types
         assert_eq!(safe_u64, safe_u64.clone());
@@ -313,21 +334,16 @@ macro_rules! unsafe_marker {
         let marker2 = unsafe { Test2::vouch() };
         let marker3 = unsafe { Test3::vouch() };
         let marker4 = unsafe { Test4::vouch() };
-    
+
         marker.trust();
         marker.take();
-    
+
         let _cp = marker4.clone();
-    
+
         if marker2.trust() {
-           // we can use this in if
+            // we can use this in if
         }
-        
+
         marker3.rely_on();
     }
 }
-
-
-
-
-
