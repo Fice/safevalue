@@ -39,14 +39,6 @@ pub struct SafeHolder<
     sealed: core::marker::PhantomData<Sealed>,
 }
 
-
-impl<T: Eq, const WRITE_ONCE: bool> Eq for SafeHolder<T, WRITE_ONCE, false> {}
-impl<T: PartialEq, const WRITE_ONCE: bool> PartialEq
-    for SafeHolder<T, WRITE_ONCE, false>
-{
-    fn eq(&self, other: &Self) -> bool { self.data == other.data }
-}
-
 impl<T, const WRITE_ONCE: bool, const READ_ONCE: bool>
     SafeHolder<T, WRITE_ONCE, READ_ONCE>
 {
@@ -102,8 +94,14 @@ impl<T, const WRITE_ONCE: bool> core::ops::Deref
 {
     type Target = T;
 
-    // Required method
     fn deref(&self) -> &Self::Target { &self.data }
+}
+
+impl<T: Eq, const WRITE_ONCE: bool> Eq for SafeHolder<T, WRITE_ONCE, false> {}
+impl<T: PartialEq, const WRITE_ONCE: bool> PartialEq
+    for SafeHolder<T, WRITE_ONCE, false>
+{
+    fn eq(&self, other: &Self) -> bool { self.data == other.data }
 }
 
 impl<T: Ord, const WRITE_ONCE: bool> Ord for SafeHolder<T, WRITE_ONCE, false> {
