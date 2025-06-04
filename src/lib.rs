@@ -153,7 +153,7 @@ struct Sealed {}
 /// without any associated data.
 ///
 /// It's best to typedef it
-pub type SafeMarker = SafeHolder<()>;
+//pub type SafeMarker = SafeHolder<()>;
 
 
 mod safevalue {
