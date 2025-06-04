@@ -1,3 +1,23 @@
+//! safevalue
+//! =========
+//!
+//!
+//! TODO: Links
+//! # Purpose
+//!
+//!
+//! # Usage
+//!
+//!
+//!
+//! safevalue works on stable rust.
+//!
+//! # No STD
+//!
+//! This crate is no_std as well as no_alloc, because it does not need them. If this is ever to change, any alloc or std will be hidden behind appropriate feature flags.
+//!
+//! # License
+
 // We don't need std at all, so we might as well be no_std
 // We can still use std in integration tests, so any tests that would require it can still do so.
 #![no_std]
@@ -7,11 +27,17 @@
 #[derive(Debug)]
 #[repr(transparent)]
 pub struct SafeHolder<T, const WRITE_ONCE: bool=true, const READ_ONCE: bool=true> {
+    /// Holds the actual data we are vouching for.
     data:   T,
+    /// Sealed is non public, so only functions within this crate can create a SafeHolder.
+    /// All constructors are 'unsafe' making it impossible to create a SafeHolder without unsafe
     sealed: core::marker::PhantomData<Sealed>,
 }
 
+
+/// Copy is only implemented for types that are not 'READ_ONCE'
 impl<T: Copy, const WRITE_ONCE: bool> Copy for SafeHolder<T, WRITE_ONCE, false> {}
+/// Clone is only implemented for types that are not 'READ_ONCE'
 impl<T: Clone, const WRITE_ONCE: bool> Clone for SafeHolder<T, WRITE_ONCE, false> {
     fn clone(&self) -> Self {
         Self { data: self.data.clone(), sealed: core::marker::PhantomData::<Sealed> {} }
@@ -28,6 +54,12 @@ impl<T: PartialEq, const WRITE_ONCE: bool> PartialEq for SafeHolder<T, WRITE_ONC
 impl<T, const WRITE_ONCE: bool, const READ_ONCE: bool>
     SafeHolder<T, WRITE_ONCE, READ_ONCE>
 {
+    /// Creates a new SafeHolder that vouches for the given 'data'.
+    ///
+    /// This is unsafe to make sure the safety requirements are uphold
+    ///
+    /// SAFETY
+    /// - See SAFETY requirements of [`T`]
     #[inline(always)]
     pub const unsafe fn vouch_for(data: T) -> Self {
         Self {
@@ -73,7 +105,7 @@ impl<T, const WRITE_ONCE: bool> core::ops::Deref
 }
 
 
-/// Non-puublic struct that is used to prevent the use of ['SafeHolder'] that circumvents the 'unsafe' functions
+/// Non-public struct that is used to prevent the use of ['SafeHolder'] that circumvents the creation of the marker without the 'unsafe' functions
 #[derive(Debug)]
 struct Sealed {}
 
