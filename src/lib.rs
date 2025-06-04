@@ -70,7 +70,15 @@ impl<T, const WRITE_ONCE: bool, const READ_ONCE: bool>
 
     #[inline(always)]
     pub fn take(self) -> T { self.data }
+
+    #[inline(always)]
+    pub fn invalidate(self) {}
+
+    #[inline(always)]
+    pub fn rely_on(&self) {}
 }
+
+
 impl<const WRITE_ONCE: bool, const READ_ONCE: bool>
     SafeHolder<(), WRITE_ONCE, READ_ONCE>
 {
@@ -120,11 +128,6 @@ mod safevalue {
     #[allow(unused_imports)]
     pub use super::SafeHolder;
 }
-
-
-pub fn rely_on<T, const W: bool, const R: bool>(_value: &SafeHolder<T, W, R>) {}
-pub fn exhaust<T, const W: bool, const R: bool>(_value: SafeHolder<T, W, R>) {}
-
 
 #[macro_export]
 macro_rules! unsafe_marker_no_copy {
@@ -234,10 +237,10 @@ macro_rules! unsafe_marker {
 
 
         
-        rely_on(&safe_u64);
-        rely_on(&safe_f32);
-        rely_on(&safe_array);
-        rely_on(&safe_custom);
+        safe_u64.rely_on();
+        safe_f32.rely_on();
+        safe_array.rely_on();
+        safe_custom.rely_on();
 
         //Taking is always safe
         assert_eq!(safe_u64.take(), 12u64);
@@ -320,7 +323,7 @@ macro_rules! unsafe_marker {
            // we can use this in if
         }
         
-        rely_on(&marker4);
+        marker3.rely_on();
     }
 }
 
