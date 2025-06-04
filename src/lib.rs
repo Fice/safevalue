@@ -16,6 +16,7 @@
 //! 
 
 
+#![cfg_attr(doctest, doc = include_str!("../README.md"))] //make sure we run the code in the readme.md during testing
 
 // We don't need std at all, so we might as well be no_std
 // We can still use std in integration tests, so any tests that would require it can still do so.
