@@ -112,6 +112,7 @@ impl<T, const WRITE_ONCE: bool, const READ_ONCE: bool>
     /// # SAFETY
     /// - It is up to the caller to uphold the SAFETY requirements for the type T.
     #[inline(always)]
+    #[must_use]
     pub const unsafe fn vouch_for(data: T) -> Self {
         Self {
             data,
@@ -147,6 +148,7 @@ impl<T, const WRITE_ONCE: bool, const READ_ONCE: bool>
     /// See also [invalidate()](`Self::invalidate`) if you want to remove the SAFETY guarantee
     /// without the need to access the data.
     #[inline(always)]
+    #[must_use]
     pub fn take(self) -> T { self.data }
 
     /// If you perform an operations that invalidates the SAFETY guarantee you
@@ -214,6 +216,7 @@ impl<T, const WRITE_ONCE: bool, const READ_ONCE: bool>
     /// TODO: not sure I want to keep this.
     /// If anyone uses this, please open an Issue and tell me.
     #[inline(always)]
+    #[must_use]
     pub const fn trust(&self) -> bool { true }
 }
 
@@ -246,6 +249,7 @@ impl<T: NonDataMarker, const WRITE_ONCE: bool, const READ_ONCE: bool>
     /// # SAFETY
     /// - See SAFETY requirements of `T`
     #[inline(always)]
+    #[must_use]
     pub const unsafe fn vouch() -> Self {
         Self {
             data:   T::NEW_MARKER,
@@ -539,8 +543,8 @@ mod tests {
         let marker3 = unsafe { Test3::vouch() };
         let _marker4 = unsafe { Test4::vouch() };
 
-        marker.trust();
-        marker.take();
+        let _ = marker.trust();
+        let _ = marker.take();
 
         if marker2.trust() {
             // we can use this in if
