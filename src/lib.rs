@@ -54,7 +54,7 @@
 ///
 /// ## Why don't we just use ```()```?
 /// If we did, we couldn't distinguish between different Markers.
-/// ```
+/// ```compile_fail
 /// pub type FooMarker = safevalue::SafeHolder<(), true, false>;
 /// pub type BarMarker = safevalue::SafeHolder<(), true, false>;
 ///
@@ -70,13 +70,10 @@
 ///     );
 /// }
 /// ```
-///n
+///
 pub trait NonDataMarker {
     /// The value used by [SafeHolder::vouch] to create the [SafeHolder].
     const NEW_MARKER: Self;
-}
-impl NonDataMarker for () {
-    const NEW_MARKER: Self = ();
 }
 
 
