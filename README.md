@@ -12,15 +12,30 @@ Add safevalue to your project e.g. via ```cargo add safevalue```.
 Then:
 
 ```rust
-use hashbrown::HashMap;
 
-let mut map = HashMap::new();
-map.insert(1, "one");
+
+fn main() {
+    //TODO!
+}
 ```
+
+## Rationale
+
+## Features
+
+[X] Zero Cost Abstraction.
+[X] Ergonomic
+[ ] Good Idea. Well, it works quite nicely in my kernel project, let's see how it goes.
+
+## Dependencies
+
+`safevalue`'s only runtime dependency is [`paste`](https://crates.io/crates/paste). This dependency will be removed when/if `concat-idents` is powerful enough and stabilised.
+
+It does additionally have dev-dependencies used for testing.
 
 ### Rust
 
-safevalue works on stable rust and requires rust version `1.85` (2024 Edition).
+`safevalue` works on stable rust and requires rust version `1.85` (2024 Edition).
 
 ### No STD
 
