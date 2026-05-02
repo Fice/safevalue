@@ -139,60 +139,101 @@ impl<T: core::fmt::Binary, const WRITE_ONCE: bool> core::fmt::Binary
 }
 
 
+/// Especially with empty ```()``` [SafeHolder] you don't really interact with it directly.
+/// 
+/// This leads to situations where such a [SafeHolder] is part of a function signature but not really used. Instead of using the ```_``` prefix
+/// You can just use this function.
+/// 
+/// Example:
+/// ```
+/// # use safevalue::{assert_marker, SafeHolder};
+/// pub fn example_func(some_precondition: &SafeHolder<()>) {
+///     assert_marker(some_precondition);
+/// 
+///     unsafe {
+///         // Do something unsafe, that is only safe when some_precondition is uphold
+///         // ...
+///     }
+/// }
+/// ```
+/// We will not get a ```unused variable``` warning for the above code.
+/// 
+/// See also:
+/// If you want to invalidate the marker as well: [take_marker]
+pub const fn assert_marker<T, const WRITE_ONCE: bool, const READ_ONCE: bool>(
+    #[allow(unused)]
+    marker: &safevalue::SafeHolder<T, WRITE_ONCE, READ_ONCE>
+) {}
+
+/// Especially with empty ```()``` [SafeHolder] you don't really interact with it directly.
+/// 
+/// This leads to situations where such a [SafeHolder] is part of a function signature but not really used. In those cases you can use ```take_marker``` if you will invalidate the marker
+/// 
+/// Example:
+/// ```
+/// # use safevalue::{take_marker, SafeHolder};
+/// pub fn example_func(some_precondition: SafeHolder<()>) {
+///     take_marker(some_precondition); // You cannot use 'some_precondition' after this line.
+/// 
+///     unsafe {
+///         // Do something unsafe, that is only safe when some_precondition is uphold and that 
+///         // will lead to the precondition to no longer be true, afterwards
+///         // ...
+///     }
+/// }
+/// ```
+/// We will not get a ```unused variable``` warning for the above code.
+/// 
+/// See also:
+/// If you don't want to invalidate the marker, use: [assert_marker]
+pub fn take_marker<T, const WRITE_ONCE: bool, const READ_ONCE: bool>(
+    #[allow(unused)]
+    marker: safevalue::SafeHolder<T, WRITE_ONCE, READ_ONCE>
+) {}
+
 
 /// Non-public struct that is used to prevent the use of ['SafeHolder'] that
-/// circumvents the creation of the marker without the 'unsafe' functions
+/// circumvents the creation of the SafeHolder without the 'unsafe' functions
 #[derive(Debug)]
 struct Sealed {}
 
+// We need to reexport this, so unsafe_marker! works in downstream crates.
+#[doc(hidden)]
+pub use paste::*;
 
-/// A marker type that you could use to denote that something has happened
-/// without any associated data.
-///
-/// It's best to typedef it
-//pub type SafeMarker = SafeHolder<()>;
-
-
-// Without this, unit testing the macro fails, because safevale::SafeHolder not
+// Without this, unit testing the macro fails, because safevalue::SafeHolder not
 // found.
 mod safevalue {
     #[allow(unused_imports)]
-    pub(crate) use super::SafeHolder;
+    pub(crate) use super::*;
 }
 
+
+#[doc(alias = "Marker")]
 #[macro_export]
+/// A macro to easily create a Marker
+/// 
+/// It supports doc expressions and visibility for the marker.
+/// 
+/// Use this over ´´´pub MarkerType = SafeHolder<()>´´´
+/// 
+/// The reason is, thatt all SafeHolder<()> are interchangable. this macro will create a hidden type, so each marker definition is unique.
 macro_rules! unsafe_marker {
     (  $(#[doc = $doc:expr]) * $v:vis $i:ident ) => {
-        $(
-            #[doc = $doc]
-        )*
-        $v struct $i(safevalue::SafeHolder<(), true, false>);
+        safevalue::paste! {
+            #[doc(hidden)]
+            $v struct [<$i NDM >] {}
 
-        impl $i {
-            #[inline(always)]
-            pub const unsafe fn vouch() -> Self {
-                Self(
-                    unsafe { safevalue::SafeHolder::vouch() }
-                )
+            impl safevalue::NonDataMarker for [<$i NDM >] {
+                const NEW_MARKER: Self = Self {};
             }
-            #[allow(dead_code)]
-            #[inline(always)]
-            pub const fn trust(&self) -> bool { true }
-            #[allow(dead_code)]
-            #[inline(always)]
-            pub const fn take(self) -> bool { true }
+
+            $(
+                #[doc = $doc]
+            )*
+            #[allow(private_interfaces)]
+            $v type $i = safevalue::SafeHolder<[<$i NDM >], true, false>;
         }
-
-
-        impl core::ops::Deref for $i
-        {
-            type Target = safevalue::SafeHolder<(), true, false>;
-
-            // Required method
-            fn deref(&self) -> &Self::Target { &self.0 }
-        }
-
-
     }
 }
 
