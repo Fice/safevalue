@@ -92,11 +92,6 @@ pub struct SafeHolder<
 > {
     /// Holds the actual data we are vouching for.
     data:   T,
-    /// Sealed is non public, so only functions within this crate can create a
-    /// SafeHolder. All constructors are 'unsafe' making it impossible to
-    /// create a SafeHolder without unsafe
-    #[doc(hidden)]
-    sealed: core::marker::PhantomData<Sealed>,
 }
 
 impl<T, const WRITE_ONCE: bool, const READ_ONCE: bool>
@@ -116,7 +111,6 @@ impl<T, const WRITE_ONCE: bool, const READ_ONCE: bool>
     pub const unsafe fn vouch_for(data: T) -> Self {
         Self {
             data,
-            sealed: core::marker::PhantomData::<Sealed> {},
         }
     }
 
@@ -231,7 +225,6 @@ impl<T: Clone, const WRITE_ONCE: bool> SafeHolder<T, WRITE_ONCE, false> {
     pub unsafe fn clone(&self) -> Self {
         Self {
             data: self.data.clone(),
-            sealed: core::marker::PhantomData::<Sealed> {},
         }
     }
 }
@@ -253,7 +246,6 @@ impl<T: NonDataMarker, const WRITE_ONCE: bool, const READ_ONCE: bool>
     pub const unsafe fn vouch() -> Self {
         Self {
             data:   T::NEW_MARKER,
-            sealed: core::marker::PhantomData::<Sealed> {},
         }
     }
 }
@@ -389,12 +381,6 @@ pub fn take_marker<T, const WRITE_ONCE: bool, const READ_ONCE: bool>(
     #[allow(unused)]
     marker: safevalue::SafeHolder<T, WRITE_ONCE, READ_ONCE>
 ) {}
-
-
-/// Non-public struct that is used to prevent the use of ['SafeHolder'] that
-/// circumvents the creation of the SafeHolder without the 'unsafe' functions
-#[derive(Debug)]
-struct Sealed {}
 
 // We need to reexport this, so unsafe_marker! works in downstream crates.
 #[doc(hidden)]
