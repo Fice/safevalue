@@ -528,17 +528,19 @@ mod tests {
     );
     unsafe_marker!(pub Test4);
 
+    unsafe_marker!(pub SafeMarker);
+
     #[test]
     pub fn test_marker() {
+        let mut _marker = unsafe { SafeMarker::vouch() };
+
         let marker = unsafe { Test::vouch() };
         let marker2 = unsafe { Test2::vouch() };
         let marker3 = unsafe { Test3::vouch() };
-        let marker4 = unsafe { Test4::vouch() };
+        let _marker4 = unsafe { Test4::vouch() };
 
         marker.trust();
         marker.take();
-
-        let _cp = marker4.clone();
 
         if marker2.trust() {
             // we can use this in if
