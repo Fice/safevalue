@@ -214,7 +214,7 @@ impl<T, const WRITE_ONCE: bool, const READ_ONCE: bool>
     /// TODO: not sure I want to keep this.
     /// If anyone uses this, please open an Issue and tell me.
     #[inline(always)]
-    pub fn rely_on(&self) {}
+    pub const fn trust(&self) -> bool { true }
 }
 
 impl<T: Clone, const WRITE_ONCE: bool> SafeHolder<T, WRITE_ONCE, false> {
@@ -233,8 +233,8 @@ impl<T: Clone, const WRITE_ONCE: bool> SafeHolder<T, WRITE_ONCE, false> {
     }
 }
 
-impl<const WRITE_ONCE: bool, const READ_ONCE: bool>
-    SafeHolder<(), WRITE_ONCE, READ_ONCE>
+impl<T: NonDataMarker, const WRITE_ONCE: bool, const READ_ONCE: bool>
+    SafeHolder<T, WRITE_ONCE, READ_ONCE>
 {
     /// Creates a new SafeHolder that vouches for a certain fact.
     ///
@@ -248,7 +248,7 @@ impl<const WRITE_ONCE: bool, const READ_ONCE: bool>
     #[inline(always)]
     pub const unsafe fn vouch() -> Self {
         Self {
-            data:   (),
+            data:   T::NEW_MARKER,
             sealed: core::marker::PhantomData::<Sealed> {},
         }
     }

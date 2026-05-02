@@ -25,7 +25,7 @@ pub fn main() {
     let mut tt2 = TT::vouch_for(37u32);
     //~^ 25:19: 25:39: call to unsafe function `SafeHolder::<T, WRITE_ONCE, READ_ONCE>::vouch_for` is unsafe and requires unsafe function or block [E0133]
     let mut marker2 = SafeMarker::vouch();
-    //~^ 27:23: 27:42: call to unsafe function `SafeMarker::vouch` is unsafe and requires unsafe function or block [E0133]
+    //~^ 27:23: 27:42: call to unsafe function `SafeHolder::<T, WRITE_ONCE, READ_ONCE>::vouch` is unsafe and requires unsafe function or block [E0133]
 
     // works with unsafe
     unsafe { ff.set(false) };
