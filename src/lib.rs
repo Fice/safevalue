@@ -481,7 +481,7 @@ pub fn take_marker<T, const WRITE_ONCE: bool, const READ_ONCE: bool>(
 
 // We need to reexport this, so unsafe_marker! works in downstream crates.
 #[doc(hidden)]
-pub use paste::*;
+pub use pastey::*;
 
 // Without this, unit testing the macro fails, because safevalue::SafeHolder not
 // found.

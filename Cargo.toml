@@ -15,7 +15,7 @@ exclude = [".github"]
 rust-version = "1.85"
 
 [dependencies]
-paste = "1.0.15"
+pastey = "0.2.3"
 
 [dev-dependencies]
 trybuild = "1"

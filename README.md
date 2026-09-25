@@ -29,7 +29,7 @@ fn main() {
 
 ## Dependencies
 
-`safevalue`'s only runtime dependency is [`paste`](https://crates.io/crates/paste). This dependency will be removed when/if `concat-idents` is powerful enough and stabilised.
+`safevalue`'s only dependency is [`pastey`](https://crates.io/crates/pastey). This dependency will be removed when/if `concat-idents` is powerful enough and stabilised.
 
 It does additionally have dev-dependencies used for testing.
 
