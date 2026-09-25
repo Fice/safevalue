@@ -1,0 +1,17 @@
+error[E0599]: no method named `set` found for struct `SafeHolder<f32, true, false>` in the current scope
+  --> tests/ui/no_writes_for_write_once.rs:29:8
+   |
+29 |     tf.set(18.0);
+   |        ^^^ method not found in `SafeHolder<f32, true, false>`
+   |
+   = note: the method was found for
+           - `SafeHolder<T, false, READ_ONCE>`
+
+error[E0599]: no method named `set` found for struct `SafeHolder<u32>` in the current scope
+  --> tests/ui/no_writes_for_write_once.rs:31:8
+   |
+31 |     tt.set(9);
+   |        ^^^ method not found in `SafeHolder<u32>`
+   |
+   = note: the method was found for
+           - `SafeHolder<T, false, READ_ONCE>`

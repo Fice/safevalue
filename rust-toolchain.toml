@@ -1,0 +1,7 @@
+# Pinned because the trybuild snapshots in tests/ui/*.stderr contain rustc's
+# exact diagnostic wording. When bumping, regenerate them with
+# `TRYBUILD=overwrite cargo test --test compile_fail` and review the diff.
+[toolchain]
+channel = "1.93.0"
+components = ["clippy", "rustfmt"]
+profile = "minimal"

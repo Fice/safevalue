@@ -1,3 +1,4 @@
+#![allow(unused)]
 extern crate safevalue;
 use safevalue::SafeHolder;
 
@@ -26,9 +27,7 @@ pub fn not_working() {
     let tt = unsafe { TT::vouch_for(37) };
 
     tf.set(18.0);
-    //~^ 28:8: 28:11: no method named `set` found for struct `SafeHolder<f32, true, false>` in the current scope [E0599]
 
     tt.set(9);
-    //~^ 31:8: 31:11: no method named `set` found for struct `SafeHolder<u32>` in the current scope [E0599]
 
 }

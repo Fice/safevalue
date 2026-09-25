@@ -56,8 +56,3 @@ at your option.
 Unless you explicitly state otherwise, any contribution intentionally submitted
 for inclusion in the work by you, as defined in the Apache-2.0 license, shall be dual licensed as above, without any
 additional terms or conditions.
-
-
-Note: If you are running the tests, sometimes the error 
-> multiple candidates for `rlib` dependency `safevalue` found [E0464]'
-pops up. It seems some duplicate build artifact between cargo check and cargo build confuse the tests. Run `cargo clean` and it should work again.

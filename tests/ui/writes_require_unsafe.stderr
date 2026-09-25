@@ -1,0 +1,55 @@
+error[E0133]: call to unsafe function `SafeHolder::<T, WRITE_ONCE, READ_ONCE, PERMANENT>::vouch_for` is unsafe and requires unsafe block
+  --> tests/ui/writes_require_unsafe.rs:20:19
+   |
+20 |     let mut ff2 = FF::vouch_for(true);
+   |                   ^^^^^^^^^^^^^^^^^^^ call to unsafe function
+   |
+   = note: consult the function's documentation for information on how to avoid undefined behavior
+
+error[E0133]: call to unsafe function `SafeHolder::<T, WRITE_ONCE, READ_ONCE, PERMANENT>::vouch_for` is unsafe and requires unsafe block
+  --> tests/ui/writes_require_unsafe.rs:21:19
+   |
+21 |     let mut ft2 = FT::vouch_for('a');
+   |                   ^^^^^^^^^^^^^^^^^^ call to unsafe function
+   |
+   = note: consult the function's documentation for information on how to avoid undefined behavior
+
+error[E0133]: call to unsafe function `SafeHolder::<T, WRITE_ONCE, READ_ONCE, PERMANENT>::vouch_for` is unsafe and requires unsafe block
+  --> tests/ui/writes_require_unsafe.rs:22:19
+   |
+22 |     let mut tf2 = TF::vouch_for(12.0);
+   |                   ^^^^^^^^^^^^^^^^^^^ call to unsafe function
+   |
+   = note: consult the function's documentation for information on how to avoid undefined behavior
+
+error[E0133]: call to unsafe function `SafeHolder::<T, WRITE_ONCE, READ_ONCE, PERMANENT>::vouch_for` is unsafe and requires unsafe block
+  --> tests/ui/writes_require_unsafe.rs:23:19
+   |
+23 |     let mut tt2 = TT::vouch_for(37u32);
+   |                   ^^^^^^^^^^^^^^^^^^^^ call to unsafe function
+   |
+   = note: consult the function's documentation for information on how to avoid undefined behavior
+
+error[E0133]: call to unsafe function `SafeHolder::<T, WRITE_ONCE, READ_ONCE, PERMANENT>::vouch` is unsafe and requires unsafe block
+  --> tests/ui/writes_require_unsafe.rs:24:23
+   |
+24 |     let mut marker2 = SafeMarker::vouch();
+   |                       ^^^^^^^^^^^^^^^^^^^ call to unsafe function
+   |
+   = note: consult the function's documentation for information on how to avoid undefined behavior
+
+error[E0133]: call to unsafe function `SafeHolder::<T, false, READ_ONCE>::set` is unsafe and requires unsafe block
+  --> tests/ui/writes_require_unsafe.rs:31:5
+   |
+31 |     ff.set(false);
+   |     ^^^^^^^^^^^^^ call to unsafe function
+   |
+   = note: consult the function's documentation for information on how to avoid undefined behavior
+
+error[E0133]: call to unsafe function `SafeHolder::<T, false, READ_ONCE>::set` is unsafe and requires unsafe block
+  --> tests/ui/writes_require_unsafe.rs:32:5
+   |
+32 |     ft.set('b');
+   |     ^^^^^^^^^^^ call to unsafe function
+   |
+   = note: consult the function's documentation for information on how to avoid undefined behavior
