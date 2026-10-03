@@ -519,6 +519,77 @@ macro_rules! unsafe_marker {
     }
 }
 
+#[doc(alias = "Marker")]
+#[macro_export]
+/// Like [unsafe_marker], but for a guarantee that only holds on the thread (or
+/// CPU core) that vouched for it - "interrupts are disabled" is true of one
+/// core, not of the whole machine.
+///
+/// The marker is neither [Send] nor [Sync], so the compiler keeps it - and
+/// every reference to it - where it was vouched for: moving it to another
+/// thread, or sharing it with one, doesn't compile. (Markers from
+/// [unsafe_marker] are both, since the type it generates is empty - right for
+/// a guarantee about the whole program, wrong for these.)
+///
+/// It supports doc comments and visibility, just like [unsafe_marker]:
+/// ```
+/// # use safevalue::{assert_marker, unsafe_marker_no_send};
+/// unsafe_marker_no_send! {
+///     /// Interrupts are disabled on this core.
+///     pub InterruptsDisabled
+/// }
+///
+/// pub fn touch_per_core_data(interrupts_disabled: &InterruptsDisabled) {
+///     assert_marker(interrupts_disabled);
+///     // ...
+/// }
+///
+/// // SAFETY: an example; nothing here can be interrupted.
+/// let interrupts_disabled = unsafe { InterruptsDisabled::vouch() };
+/// touch_per_core_data(&interrupts_disabled);
+/// ```
+///
+/// Sending it to another thread doesn't compile:
+/// ```compile_fail,E0277
+/// # use safevalue::unsafe_marker_no_send;
+/// unsafe_marker_no_send!(pub ThisThreadOnly);
+///
+/// fn send<T: Send>(_: T) {}
+/// send(unsafe { ThisThreadOnly::vouch() });
+/// ```
+/// and neither does sharing it with one:
+/// ```compile_fail,E0277
+/// # use safevalue::unsafe_marker_no_send;
+/// unsafe_marker_no_send!(pub ThisThreadOnly);
+///
+/// fn sync<T: Sync>() {}
+/// sync::<ThisThreadOnly>();
+/// ```
+macro_rules! unsafe_marker_no_send {
+    (  $(#[doc = $doc:expr]) * $v:vis $i:ident ) => {
+        safevalue::paste! {
+            #[doc(hidden)]
+            $v struct [<$i NDM >] {
+                // Zero-sized; `*const ()` is neither `Send` nor `Sync`, so
+                // neither is this - nor the marker holding it.
+                _not_send: ::core::marker::PhantomData<*const ()>,
+            }
+
+            impl safevalue::NonDataMarker for [<$i NDM >] {
+                const NEW_MARKER: Self = Self {
+                    _not_send: ::core::marker::PhantomData,
+                };
+            }
+
+            $(
+                #[doc = $doc]
+            )*
+            #[allow(private_interfaces)]
+            $v type $i = safevalue::SafeHolder<[<$i NDM >], true, false>;
+        }
+    }
+}
+
 
 #[cfg(test)]
 mod tests {
@@ -662,5 +733,44 @@ mod tests {
         }
 
         marker3.rely_on();
+    }
+
+    unsafe_marker_no_send!(NoSend);
+    unsafe_marker_no_send!(
+        /// do we have documentation?
+        pub NoSend2
+    );
+    unsafe_marker_no_send!(pub NoSend3);
+
+    #[test]
+    pub fn test_no_send_marker() {
+        let marker = unsafe { NoSend::vouch() };
+        let marker2 = unsafe { NoSend2::vouch() };
+        let marker3 = unsafe { NoSend3::vouch() };
+
+        assert_marker(&marker);
+        let _ = marker.trust();
+        take_marker(marker);
+
+        if marker2.trust() {
+            // we can use this in if
+        }
+
+        marker3.rely_on();
+        let _ = marker3.take();
+    }
+
+    #[test]
+    pub fn no_send_markers_are_zero_sized() {
+        assert_eq!(core::mem::size_of::<NoSend>(), 0);
+        assert_eq!(core::mem::size_of::<SafeMarker>(), 0);
+    }
+
+    #[test]
+    pub fn only_ordinary_markers_are_send_and_sync() {
+        fn send_sync<T: Send + Sync>() {}
+        // The counterpart - `NoSend` being neither - is checked by the
+        // compile-fail tests (tests/ui/no_send_marker_stays_on_its_thread.rs).
+        send_sync::<SafeMarker>();
     }
 }

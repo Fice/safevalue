@@ -1,6 +1,6 @@
 #![allow(unused)]
 extern crate safevalue;
-use safevalue::{ unsafe_marker, SafeHolder };
+use safevalue::{ unsafe_marker, unsafe_marker_no_send, SafeHolder };
 
 
 type TF = SafeHolder<f32, true, false>;
@@ -8,6 +8,7 @@ type TT = SafeHolder<u32, true, true>;
 type FF = SafeHolder<bool, false, false>;
 type FT = SafeHolder<char, false, true>;
 unsafe_marker!(pub SafeMarker);
+unsafe_marker_no_send!(pub NoSendMarker);
 
 pub fn main() {
     let mut ff = unsafe { FF::vouch_for(true) };
@@ -22,6 +23,7 @@ pub fn main() {
     let mut tf2 = TF::vouch_for(12.0);
     let mut tt2 = TT::vouch_for(37u32);
     let mut marker2 = SafeMarker::vouch();
+    let mut no_send_marker = NoSendMarker::vouch();
 
     // works with unsafe
     unsafe { ff.set(false) };

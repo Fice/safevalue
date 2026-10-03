@@ -1,0 +1,39 @@
+error[E0277]: `*const ()` cannot be shared between threads safely
+  --> tests/ui/no_send_marker_cannot_be_shared_with_another_thread.rs:20:21
+   |
+20 |         scope.spawn(move || this_thread_only.rely_on());
+   |               ----- ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `*const ()` cannot be shared between threads safely
+   |               |
+   |               required by a bound introduced by this call
+   |
+   = help: within `SafeHolder<ThisThreadOnlyNDM, true, false>`, the trait `Sync` is not implemented for `*const ()`
+note: required because it appears within the type `PhantomData<*const ()>`
+  --> $RUST/core/src/marker.rs
+   |
+   | pub struct PhantomData<T: PointeeSized>;
+   |            ^^^^^^^^^^^
+note: required because it appears within the type `ThisThreadOnlyNDM`
+  --> tests/ui/no_send_marker_cannot_be_shared_with_another_thread.rs:6:1
+   |
+ 6 | unsafe_marker_no_send!(pub ThisThreadOnly);
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+note: required because it appears within the type `SafeHolder<ThisThreadOnlyNDM, true, false>`
+  --> src/lib.rs
+   |
+   | pub struct SafeHolder<
+   |            ^^^^^^^^^^
+   = note: required for `&SafeHolder<ThisThreadOnlyNDM, true, false>` to implement `Send`
+note: required because it's used within this closure
+  --> tests/ui/no_send_marker_cannot_be_shared_with_another_thread.rs:20:21
+   |
+20 |         scope.spawn(move || this_thread_only.rely_on());
+   |                     ^^^^^^^
+note: required by a bound in `Scope::<'scope, 'env>::spawn`
+  --> $RUST/std/src/thread/scoped.rs
+   |
+   |     pub fn spawn<F, T>(&'scope self, f: F) -> ScopedJoinHandle<'scope, T>
+   |            ----- required by a bound in this associated function
+   |     where
+   |         F: FnOnce() -> T + Send + 'scope,
+   |                            ^^^^ required by this bound in `Scope::<'scope, 'env>::spawn`
+   = note: this error originates in the macro `unsafe_marker_no_send` (in Nightly builds, run with -Z macro-backtrace for more info)
