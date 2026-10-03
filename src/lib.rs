@@ -33,7 +33,6 @@
 #![warn(rustdoc::broken_intra_doc_links)]
 #![deny(unsafe_op_in_unsafe_fn)]
 
-
 /// Trait implemented for Data Types, that do not actually hold any data.
 ///
 /// It is used by the [unsafe_marker] macro. It will expand to something like:
@@ -41,15 +40,17 @@
 /// struct FooMarkerUniqueData {}
 ///
 /// impl safevalue::NonDataMarker for FooMarkerUniqueData {
-///    const NEW_MARKER: Self = Self {};
+///     const NEW_MARKER: Self = Self {};
 /// }
 ///
 ///
-/// pub type FooMarker = safevalue::SafeHolder<FooMarkerUniqueData, true, false>;
+/// pub type FooMarker =
+///     safevalue::SafeHolder<FooMarkerUniqueData, true, false>;
 /// ```
 /// Note: Try to use [unsafe_marker] macro over manually implementing this.
 ///
-/// > Only implement this trait for Types that are distinct (e.g. not `()`) and don't hold any
+/// > Only implement this trait for Types that are distinct (e.g. not `()`) and
+/// > don't hold any
 /// > runtime data, e.g. `struct InterruptsDisabled {}`
 ///
 /// ## Why don't we just use ```()```?
@@ -70,39 +71,41 @@
 ///     );
 /// }
 /// ```
-///
 pub trait NonDataMarker {
     /// The value used by [SafeHolder::vouch] to create the [SafeHolder].
     const NEW_MARKER: Self;
 }
 
-
 #[derive(Debug)]
 #[repr(transparent)]
 /// SafeHolder is a struct that vouches for the data within it.
 ///
-/// Although it is common to have a SafeHolder vouching for () with a different meaning like 'Interrupts for the processor are currently disabled'
+/// Although it is common to have a SafeHolder vouching for () with a different
+/// meaning like 'Interrupts for the processor are currently disabled'
 ///
 /// # Permanent guarantees
 ///
-/// Normally a guarantee can be *used up*: "this address points to unused memory" stops
-/// being true the moment someone uses that memory (see [take()](SafeHolder::take)), which
-/// is why a holder can't simply be copied - every copy would go on vouching for
-/// something that is no longer true.
+/// Normally a guarantee can be *used up*: "this address points to unused
+/// memory" stops being true the moment someone uses that memory (see
+/// [take()](SafeHolder::take)), which is why a holder can't simply be copied -
+/// every copy would go on vouching for something that is no longer true.
 ///
-/// Some facts never expire, though: "the bootloader mapped all of physical memory at this
-/// offset" is true for the whole run. Vouching for one of those with `PERMANENT = true`
-/// flips what the holder can do:
-/// - it is [Clone] and [Copy], so everything that needs the fact can just have its own copy;
-/// - it has no [take()](SafeHolder::take) and no [invalidate()](SafeHolder::invalidate) - a
-///   permanent guarantee can't be revoked, and offering those next to `Copy` would let one
-///   copy claim to consume a fact the others still hold. (Read it through
+/// Some facts never expire, though: "the bootloader mapped all of physical
+/// memory at this offset" is true for the whole run. Vouching for one of those
+/// with `PERMANENT = true` flips what the holder can do:
+/// - it is [Clone] and [Copy], so everything that needs the fact can just have
+///   its own copy;
+/// - it has no [take()](SafeHolder::take) and no
+///   [invalidate()](SafeHolder::invalidate) - a permanent guarantee can't be
+///   revoked, and offering those next to `Copy` would let one copy claim to
+///   consume a fact the others still hold. (Read it through
 ///   [Deref](core::ops::Deref) and copy the data out of it instead.)
 ///
-/// Only `WRITE_ONCE = true`, `READ_ONCE = false` holders can be permanent: a `READ_ONCE`
-/// value is a secret that must be consumed exactly once, which copies would defeat, and
-/// the copies of a writable holder could each be `set` to a different value. Any other
-/// combination fails to compile when it is first constructed.
+/// Only `WRITE_ONCE = true`, `READ_ONCE = false` holders can be permanent: a
+/// `READ_ONCE` value is a secret that must be consumed exactly once, which
+/// copies would defeat, and the copies of a writable holder could each be `set`
+/// to a different value. Any other combination fails to compile when it is
+/// first constructed.
 ///
 /// ```
 /// # use safevalue::SafeHolder;
@@ -142,44 +145,44 @@ pub struct SafeHolder<
     const PERMANENT: bool = false,
 > {
     /// Holds the actual data we are vouching for.
-    data:   T,
+    data: T,
 }
 
 impl<T, const WRITE_ONCE: bool, const READ_ONCE: bool, const PERMANENT: bool>
     SafeHolder<T, WRITE_ONCE, READ_ONCE, PERMANENT>
 {
-    /// Evaluated (at compile time) whenever a holder is constructed, so a combination of
-    /// parameters that doesn't make sense can never exist - see the type's docs.
+    /// Evaluated (at compile time) whenever a holder is constructed, so a
+    /// combination of parameters that doesn't make sense can never exist -
+    /// see the type's docs.
     const VALID: () = assert!(
         !PERMANENT || (WRITE_ONCE && !READ_ONCE),
-        "a PERMANENT SafeHolder must be WRITE_ONCE = true and READ_ONCE = false",
+        "a PERMANENT SafeHolder must be WRITE_ONCE = true and READ_ONCE = \
+         false",
     );
 
     /// Creates a new [SafeHolder] that vouches for the given data.
     /// If `WRITE_ONCE` is true, we cannot write to or change the contained data
-    /// in any way. We can only mut the data after we [take()](SafeHolder::take) it and thereby remove the SAFETY
-    /// guarantee.
+    /// in any way. We can only mut the data after we [take()](SafeHolder::take)
+    /// it and thereby remove the SAFETY guarantee.
     ///
     /// See also [vouch()](SafeHolder::vouch) and [set()](SafeHolder::set)
     ///
     /// # SAFETY
-    /// - It is up to the caller to uphold the SAFETY requirements for the type T.
-    /// - If `PERMANENT` is true, the caller also promises the guarantee can never
-    ///   expire, whatever happens to any copy of the holder afterwards.
+    /// - It is up to the caller to uphold the SAFETY requirements for the type
+    ///   T.
+    /// - If `PERMANENT` is true, the caller also promises the guarantee can
+    ///   never expire, whatever happens to any copy of the holder afterwards.
     #[inline(always)]
     #[must_use]
     pub const unsafe fn vouch_for(data: T) -> Self {
         let () = Self::VALID;
-        Self {
-            data,
-        }
+        Self { data }
     }
 }
 
 impl<T, const WRITE_ONCE: bool, const READ_ONCE: bool>
     SafeHolder<T, WRITE_ONCE, READ_ONCE, false>
 {
-
     /// Consumes the `SafeHolder` and returns the value contained in it.
     ///
     /// In some Situations using the value removes the SAFETY guarantee.
@@ -203,10 +206,11 @@ impl<T, const WRITE_ONCE: bool, const READ_ONCE: bool>
     /// ```
     ///
     /// When the SafeHolder is `READ_ONCE`, this is the only way to get the
-    /// contained data, otherwise [Deref](core::ops::Deref) and [AsRef] are implemented.
+    /// contained data, otherwise [Deref](core::ops::Deref) and [AsRef] are
+    /// implemented.
     ///
-    /// See also [invalidate()](`Self::invalidate`) if you want to remove the SAFETY guarantee
-    /// without the need to access the data.
+    /// See also [invalidate()](`Self::invalidate`) if you want to remove the
+    /// SAFETY guarantee without the need to access the data.
     #[inline(always)]
     #[must_use]
     pub fn take(self) -> T { self.data }
@@ -214,12 +218,13 @@ impl<T, const WRITE_ONCE: bool, const READ_ONCE: bool>
     /// If you perform an operations that invalidates the SAFETY guarantee you
     /// should invalidate.
     ///
-    /// See also [take()](`Self::take`) if you actually need access to the contained
-    /// data.
+    /// See also [take()](`Self::take`) if you actually need access to the
+    /// contained data.
     ///
-    /// NOTE: Only exists for holders that aren't `PERMANENT`. We could not have this
-    /// function on a [Copy] or [Clone] holder, because there might still be
-    /// instances out there - and a permanent guarantee can't be invalidated anyway.
+    /// NOTE: Only exists for holders that aren't `PERMANENT`. We could not have
+    /// this function on a [Copy] or [Clone] holder, because there might
+    /// still be instances out there - and a permanent guarantee can't be
+    /// invalidated anyway.
     #[inline(always)]
     pub fn invalidate(self) {}
 }
@@ -227,10 +232,11 @@ impl<T, const WRITE_ONCE: bool, const READ_ONCE: bool>
 impl<T, const WRITE_ONCE: bool, const READ_ONCE: bool, const PERMANENT: bool>
     SafeHolder<T, WRITE_ONCE, READ_ONCE, PERMANENT>
 {
-
-    /// A function indicating that the current code piece is relying on the given SAFETY guarantees.
+    /// A function indicating that the current code piece is relying on the
+    /// given SAFETY guarantees.
     ///
-    /// Especially useful for [Marker](unsafe_marker) types where we don't have actual data to use.
+    /// Especially useful for [Marker](unsafe_marker) types where we don't have
+    /// actual data to use.
     ///
     /// # The Problem
     /// ```
@@ -245,11 +251,12 @@ impl<T, const WRITE_ONCE: bool, const READ_ONCE: bool, const PERMANENT: bool>
     /// }
     /// ```
     ///
-    /// The above example is perfectly fine, however we get a unused warning because we rely on `guarantee` conceptually,
-    /// we don't actually use it in code.
+    /// The above example is perfectly fine, however we get a unused warning
+    /// because we rely on `guarantee` conceptually, we don't actually use
+    /// it in code.
     ///
-    /// We could markt it unused via `_guarante`, but we might miss it in future refactors, where it no longer
-    /// requires/relies on this guarantee.
+    /// We could markt it unused via `_guarante`, but we might miss it in future
+    /// refactors, where it no longer requires/relies on this guarantee.
     ///
     /// # The Solution
     ///
@@ -258,7 +265,6 @@ impl<T, const WRITE_ONCE: bool, const READ_ONCE: bool, const PERMANENT: bool>
     /// # use safevalue::SafeHolder;
     /// # struct Foo {}
     /// pub fn foo(guarantee: SafeHolder<Foo, true, true>) {
-    ///
     ///     guarantee.rely_on();
     ///     // SAFETY
     ///     // We know this is safe, because of `guarantee`
@@ -267,13 +273,14 @@ impl<T, const WRITE_ONCE: bool, const READ_ONCE: bool, const PERMANENT: bool>
     ///     }
     /// }
     /// ```
-    /// This not only makes use of the guarantee, it also provides great locality when documenting
-    /// `//SAFETY` sections of `unsafe` code.
+    /// This not only makes use of the guarantee, it also provides great
+    /// locality when documenting `//SAFETY` sections of `unsafe` code.
     ///
     /// > This functions is zerocost in that it doesn't actually do anything
     ///
-    /// If the `unsafe` code invalidates the safety guarantees (e.g. memory pointed to by a pointer is no longer unused)
-    /// consider using [invalidate()](SafeHolder::invalidate) or [take()](SafeHolder::take)
+    /// If the `unsafe` code invalidates the safety guarantees (e.g. memory
+    /// pointed to by a pointer is no longer unused) consider using
+    /// [invalidate()](SafeHolder::invalidate) or [take()](SafeHolder::take)
     ///
     /// See also [trust()](SafeHolder::trust).
     #[inline(always)]
@@ -297,8 +304,8 @@ impl<T: Clone, const WRITE_ONCE: bool> SafeHolder<T, WRITE_ONCE, false, false> {
     /// # SAFETY
     ///
     /// make sure that the safety requirements of T still hold, when there
-    /// are two instances of this around. Functions like [take()](Self::take) or [invalidate()](Self::invalidate)
-    /// will only consum one of the copies.
+    /// are two instances of this around. Functions like [take()](Self::take) or
+    /// [invalidate()](Self::invalidate) will only consum one of the copies.
     pub unsafe fn clone_unchecked(&self) -> Self {
         Self {
             data: self.data.clone(),
@@ -306,8 +313,9 @@ impl<T: Clone, const WRITE_ONCE: bool> SafeHolder<T, WRITE_ONCE, false, false> {
     }
 }
 
-/// Copies of a permanent guarantee - see [SafeHolder]'s docs. There is no `take` or
-/// `invalidate` on these, so nothing can claim to have used one of the copies up.
+/// Copies of a permanent guarantee - see [SafeHolder]'s docs. There is no
+/// `take` or `invalidate` on these, so nothing can claim to have used one of
+/// the copies up.
 impl<T: Clone> Clone for SafeHolder<T, true, false, true> {
     fn clone(&self) -> Self {
         Self {
@@ -318,8 +326,12 @@ impl<T: Clone> Clone for SafeHolder<T, true, false, true> {
 
 impl<T: Copy> Copy for SafeHolder<T, true, false, true> {}
 
-impl<T: NonDataMarker, const WRITE_ONCE: bool, const READ_ONCE: bool, const PERMANENT: bool>
-    SafeHolder<T, WRITE_ONCE, READ_ONCE, PERMANENT>
+impl<
+    T: NonDataMarker,
+    const WRITE_ONCE: bool,
+    const READ_ONCE: bool,
+    const PERMANENT: bool,
+> SafeHolder<T, WRITE_ONCE, READ_ONCE, PERMANENT>
 {
     /// Creates a new SafeHolder that vouches for a certain fact.
     ///
@@ -335,7 +347,7 @@ impl<T: NonDataMarker, const WRITE_ONCE: bool, const READ_ONCE: bool, const PERM
     pub const unsafe fn vouch() -> Self {
         let () = Self::VALID;
         Self {
-            data:   T::NEW_MARKER,
+            data: T::NEW_MARKER,
         }
     }
 }
@@ -373,7 +385,8 @@ impl<T, const WRITE_ONCE: bool, const PERMANENT: bool> core::ops::Deref
 
 impl<T: Eq, const WRITE_ONCE: bool, const PERMANENT: bool> Eq
     for SafeHolder<T, WRITE_ONCE, false, PERMANENT>
-{}
+{
+}
 impl<T: PartialEq, const WRITE_ONCE: bool, const PERMANENT: bool> PartialEq
     for SafeHolder<T, WRITE_ONCE, false, PERMANENT>
 {
@@ -395,34 +408,35 @@ impl<T: PartialOrd, const WRITE_ONCE: bool, const PERMANENT: bool> PartialOrd
     }
 }
 
-impl<T: core::fmt::UpperHex, const WRITE_ONCE: bool, const PERMANENT: bool> core::fmt::UpperHex
-    for SafeHolder<T, WRITE_ONCE, false, PERMANENT>
+impl<T: core::fmt::UpperHex, const WRITE_ONCE: bool, const PERMANENT: bool>
+    core::fmt::UpperHex for SafeHolder<T, WRITE_ONCE, false, PERMANENT>
 {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         core::fmt::UpperHex::fmt(&self.data, f)
     }
 }
-impl<T: core::fmt::LowerHex, const WRITE_ONCE: bool, const PERMANENT: bool> core::fmt::LowerHex
-    for SafeHolder<T, WRITE_ONCE, false, PERMANENT>
+impl<T: core::fmt::LowerHex, const WRITE_ONCE: bool, const PERMANENT: bool>
+    core::fmt::LowerHex for SafeHolder<T, WRITE_ONCE, false, PERMANENT>
 {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         core::fmt::LowerHex::fmt(&self.data, f)
     }
 }
-impl<T: core::fmt::Binary, const WRITE_ONCE: bool, const PERMANENT: bool> core::fmt::Binary
-    for SafeHolder<T, WRITE_ONCE, false, PERMANENT>
+impl<T: core::fmt::Binary, const WRITE_ONCE: bool, const PERMANENT: bool>
+    core::fmt::Binary for SafeHolder<T, WRITE_ONCE, false, PERMANENT>
 {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         core::fmt::Binary::fmt(&self.data, f)
     }
 }
 
-
-/// Especially with empty ```()``` [SafeHolder] you don't really interact with it directly.
-/// 
-/// This leads to situations where such a [SafeHolder] is part of a function signature but not really used. Instead of using the ```_``` prefix
+/// Especially with empty ```()``` [SafeHolder] you don't really interact with
+/// it directly.
+///
+/// This leads to situations where such a [SafeHolder] is part of a function
+/// signature but not really used. Instead of using the ```_``` prefix
 /// You can just use this function.
-/// 
+///
 /// Example:
 /// ```
 /// # use safevalue::{assert_marker, SafeHolder, unsafe_marker};
@@ -432,7 +446,7 @@ impl<T: core::fmt::Binary, const WRITE_ONCE: bool, const PERMANENT: bool> core::
 ///
 /// pub fn example_func(some_precondition: &SomePrecondition) {
 ///     assert_marker(some_precondition);
-/// 
+///
 ///     unsafe {
 ///         // Do something unsafe, that is only safe when some_precondition is uphold
 ///         // ...
@@ -440,18 +454,31 @@ impl<T: core::fmt::Binary, const WRITE_ONCE: bool, const PERMANENT: bool> core::
 /// }
 /// ```
 /// We will not get a ```unused variable``` warning for the above code.
-/// 
+///
 /// See also:
 /// If you want to invalidate the marker as well: [take_marker]
-pub const fn assert_marker<T, const WRITE_ONCE: bool, const READ_ONCE: bool, const PERMANENT: bool>(
-    #[allow(unused)]
-    marker: &safevalue::SafeHolder<T, WRITE_ONCE, READ_ONCE, PERMANENT>
-) {}
+pub const fn assert_marker<
+    T,
+    const WRITE_ONCE: bool,
+    const READ_ONCE: bool,
+    const PERMANENT: bool,
+>(
+    #[allow(unused)] marker: &safevalue::SafeHolder<
+        T,
+        WRITE_ONCE,
+        READ_ONCE,
+        PERMANENT,
+    >,
+) {
+}
 
-/// Especially with empty ```()``` [SafeHolder] you don't really interact with it directly.
-/// 
-/// This leads to situations where such a [SafeHolder] is part of a function signature but not really used. In those cases you can use ```take_marker``` if you will invalidate the marker
-/// 
+/// Especially with empty ```()``` [SafeHolder] you don't really interact with
+/// it directly.
+///
+/// This leads to situations where such a [SafeHolder] is part of a function
+/// signature but not really used. In those cases you can use ```take_marker```
+/// if you will invalidate the marker
+///
 /// Example:
 /// ```
 /// # use safevalue::{take_marker, SafeHolder, unsafe_marker};
@@ -461,23 +488,25 @@ pub const fn assert_marker<T, const WRITE_ONCE: bool, const READ_ONCE: bool, con
 ///
 /// pub fn example_func(some_precondition: SomePrecondition) {
 ///     take_marker(some_precondition); // You cannot use 'some_precondition' after this line.
-/// 
+///
 ///     unsafe {
-///         // Do something unsafe, that is only safe when some_precondition is uphold and that 
+///         // Do something unsafe, that is only safe when some_precondition is uphold and that
 ///         // will lead to the precondition to no longer be true, afterwards
 ///         // ...
 ///     }
 /// }
 /// ```
 /// We will not get a ```unused variable``` warning for the above code.
-/// 
+///
 /// See also:
 /// If you don't want to invalidate the marker, use: [assert_marker]
 pub fn take_marker<T, const WRITE_ONCE: bool, const READ_ONCE: bool>(
     #[allow(unused)]
-    // Not `PERMANENT` ones: like `take`, this is "I am using this guarantee up".
-    marker: safevalue::SafeHolder<T, WRITE_ONCE, READ_ONCE, false>
-) {}
+    // Not `PERMANENT` ones: like `take`, this is "I am using this guarantee
+    // up".
+    marker: safevalue::SafeHolder<T, WRITE_ONCE, READ_ONCE, false>,
+) {
+}
 
 // We need to reexport this, so unsafe_marker! works in downstream crates.
 #[doc(hidden)]
@@ -490,16 +519,16 @@ mod safevalue {
     pub(crate) use super::*;
 }
 
-
 #[doc(alias = "Marker")]
 #[macro_export]
 /// A macro to easily create a Marker
-/// 
+///
 /// It supports doc expressions and visibility for the marker.
-/// 
+///
 /// Use this over ´´´pub MarkerType = SafeHolder<()>´´´
-/// 
-/// The reason is, that all SafeHolder<()> are interchangable. this macro will create a hidden type, so each marker definition is unique.
+///
+/// The reason is, that all SafeHolder<()> are interchangable. this macro will
+/// create a hidden type, so each marker definition is unique.
 macro_rules! unsafe_marker {
     (  $(#[doc = $doc:expr]) * $v:vis $i:ident ) => {
         safevalue::paste! {
@@ -590,11 +619,9 @@ macro_rules! unsafe_marker_no_send {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
-
 
     #[derive(Debug, PartialEq, Eq)]
     struct Custom {
@@ -607,7 +634,6 @@ mod tests {
     type SafeArray = SafeHolder<[bool; 4], false, true>;
     type SafeCustom = SafeHolder<Custom, true, true>;
 
-
     #[test]
     fn new_and_take_works() {
         let safe_u64 = unsafe { SafeU64::vouch_for(12u64) };
@@ -616,8 +642,6 @@ mod tests {
             unsafe { SafeArray::vouch_for([true, false, false, true]) };
         let safe_custom =
             unsafe { SafeCustom::vouch_for(Custom { c: 'a', b: false }) };
-
-
 
         safe_u64.rely_on();
         safe_f32.rely_on();
@@ -639,7 +663,6 @@ mod tests {
             unsafe { SafeArray::vouch_for([true, false, false, true]) };
         let _safe_custom =
             unsafe { SafeCustom::vouch_for(Custom { c: 'a', b: false }) };
-
 
         //ref is available and works when READ_ONCE is false
         assert_eq!(*safe_u64.as_ref(), 0u64);
@@ -706,7 +729,6 @@ mod tests {
         /// do we have documentation?
         pub Test2
     );
-
 
     unsafe_marker!(
         /// do we have documentation?
