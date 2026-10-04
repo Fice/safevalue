@@ -1,0 +1,121 @@
+error: lifetime parameters aren't supported by `unsafe_marker!` yet
+  --> tests/ui/generic_markers_are_checked.rs:13:1
+   |
+13 | unsafe_marker!(pub struct Borrowed<'a>(&'a u8));
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: this error originates in the macro `$crate::unsafe_marker` which comes from the expansion of the macro `unsafe_marker` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error: const generic parameters aren't supported by `unsafe_marker!` yet
+  --> tests/ui/generic_markers_are_checked.rs:14:1
+   |
+14 | unsafe_marker!(pub struct Sized<const N: usize>([u8; N]));
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: this error originates in the macro `$crate::unsafe_marker` which comes from the expansion of the macro `unsafe_marker` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error: a generic marker needs data that uses its parameters, like `pub struct Secret<T>(T);`
+  --> tests/ui/generic_markers_are_checked.rs:16:1
+   |
+16 | unsafe_marker!(pub struct NoData<T>);
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: this error originates in the macro `$crate::unsafe_marker` which comes from the expansion of the macro `unsafe_marker` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error: a generic marker needs data that uses its parameters, like `pub struct Secret<T>(T);`
+  --> tests/ui/generic_markers_are_checked.rs:17:1
+   |
+17 | unsafe_marker!(pub struct NoDataWithBounds<T>: readable);
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: this error originates in the macro `$crate::unsafe_marker` which comes from the expansion of the macro `unsafe_marker` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `u8: Seed` is not satisfied
+  --> tests/ui/generic_markers_are_checked.rs:23:25
+   |
+23 |     let seed = unsafe { SecretSeed::vouch_for(1u8) };
+   |                         ^^^^^^^^^^ the trait `Seed` is not implemented for `u8`
+   |
+help: the trait `Seed` is implemented for `u64`
+  --> tests/ui/generic_markers_are_checked.rs:6:1
+   |
+ 6 | impl Seed for u64 {}
+   | ^^^^^^^^^^^^^^^^^
+note: required for `SecretSeedNDM<u8>` to implement `__secret_seed_ndm::Bounds`
+  --> tests/ui/generic_markers_are_checked.rs:9:1
+   |
+ 9 | unsafe_marker!(pub struct SecretSeed<T: Seed>(T));
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^----^^^^^
+   |                                         |
+   |                                         unsatisfied trait bound introduced here
+note: required for `SecretSeedNDM<u8>` to implement `MarkerData`
+  --> tests/ui/generic_markers_are_checked.rs:9:1
+   |
+ 9 | unsafe_marker!(pub struct SecretSeed<T: Seed>(T));
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ unsatisfied trait bound introduced here
+note: required by a bound in `SafeHolder`
+  --> src/holder.rs
+   |
+   | pub struct SafeHolder<
+   |            ---------- required by a bound in this struct
+   |     T: MarkerData,
+   |        ^^^^^^^^^^ required by this bound in `SafeHolder`
+   = note: this error originates in the macro `$crate::unsafe_marker` which comes from the expansion of the macro `unsafe_marker` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `u8: Seed` is not satisfied
+  --> tests/ui/generic_markers_are_checked.rs:23:25
+   |
+23 |     let seed = unsafe { SecretSeed::vouch_for(1u8) };
+   |                         ^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `Seed` is not implemented for `u8`
+   |
+help: the trait `Seed` is implemented for `u64`
+  --> tests/ui/generic_markers_are_checked.rs:6:1
+   |
+ 6 | impl Seed for u64 {}
+   | ^^^^^^^^^^^^^^^^^
+note: required for `SecretSeedNDM<u8>` to implement `__secret_seed_ndm::Bounds`
+  --> tests/ui/generic_markers_are_checked.rs:9:1
+   |
+ 9 | unsafe_marker!(pub struct SecretSeed<T: Seed>(T));
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^----^^^^^
+   |                                         |
+   |                                         unsatisfied trait bound introduced here
+note: required for `SecretSeedNDM<u8>` to implement `MarkerData`
+  --> tests/ui/generic_markers_are_checked.rs:9:1
+   |
+ 9 | unsafe_marker!(pub struct SecretSeed<T: Seed>(T));
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ unsatisfied trait bound introduced here
+note: required by a bound in `SafeHolder::<T, WRITE_ONCE, READ_ONCE, PERMANENT>::vouch_for`
+  --> src/holder.rs
+   |
+   |     T: MarkerData,
+   |        ^^^^^^^^^^ required by this bound in `SafeHolder::<T, WRITE_ONCE, READ_ONCE, PERMANENT>::vouch_for`
+...
+   |     pub unsafe fn vouch_for(data: T::Data) -> Self {
+   |                   --------- required by a bound in this associated function
+   = note: this error originates in the macro `$crate::unsafe_marker` which comes from the expansion of the macro `unsafe_marker` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `u8: Seed` is not satisfied
+  --> tests/ui/generic_markers_are_checked.rs:23:47
+   |
+23 |     let seed = unsafe { SecretSeed::vouch_for(1u8) };
+   |                                               ^^^ the trait `Seed` is not implemented for `u8`
+   |
+help: the trait `Seed` is implemented for `u64`
+  --> tests/ui/generic_markers_are_checked.rs:6:1
+   |
+ 6 | impl Seed for u64 {}
+   | ^^^^^^^^^^^^^^^^^
+note: required for `SecretSeedNDM<u8>` to implement `__secret_seed_ndm::Bounds`
+  --> tests/ui/generic_markers_are_checked.rs:9:1
+   |
+ 9 | unsafe_marker!(pub struct SecretSeed<T: Seed>(T));
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^----^^^^^
+   |                                         |
+   |                                         unsatisfied trait bound introduced here
+note: required for `SecretSeedNDM<u8>` to implement `MarkerData`
+  --> tests/ui/generic_markers_are_checked.rs:9:1
+   |
+ 9 | unsafe_marker!(pub struct SecretSeed<T: Seed>(T));
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ unsatisfied trait bound introduced here
+   = note: this error originates in the macro `$crate::unsafe_marker` which comes from the expansion of the macro `unsafe_marker` (in Nightly builds, run with -Z macro-backtrace for more info)

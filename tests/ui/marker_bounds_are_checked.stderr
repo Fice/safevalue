@@ -69,11 +69,3 @@ error: expected a marker like `pub struct Name;` or `pub struct Name(Type);`, op
    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
    |
    = note: this error originates in the macro `$crate::unsafe_marker` which comes from the expansion of the macro `unsafe_marker` (in Nightly builds, run with -Z macro-backtrace for more info)
-
-error: expected a marker like `pub struct Name;` or `pub struct Name(Type);`, optionally followed by bounds, like `pub struct Name: readable + !Sync;`
-  --> tests/ui/marker_bounds_are_checked.rs:19:1
-   |
-19 | unsafe_marker!(pub struct Generic<T>(T));
-   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-   |
-   = note: this error originates in the macro `$crate::unsafe_marker` which comes from the expansion of the macro `unsafe_marker` (in Nightly builds, run with -Z macro-backtrace for more info)

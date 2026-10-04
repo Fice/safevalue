@@ -16,6 +16,5 @@ unsafe_marker!(pub struct PermanentWritable(u32): permanent + writable);
 unsafe_marker!(pub struct OnlyNotSend: !Send);
 unsafe_marker!(pub struct WritableWithoutData: writable);
 unsafe_marker!(pub struct Named { data: u32 });
-unsafe_marker!(pub struct Generic<T>(T));
 
 pub fn main() {}

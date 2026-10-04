@@ -176,6 +176,37 @@ pub trait NonDataMarker {
 /// only when the marker is `readable`. For your own types,
 /// `#[derive(MarkerData)]` them (see [MarkerData](crate::MarkerData)).
 ///
+/// # Generics
+///
+/// A marker with data can be generic over it - with bounds and defaults, as
+/// usual. The marker is then a generic type alias:
+/// ```
+/// # use safevalue::unsafe_marker;
+/// pub trait Seed {
+///     fn seed(&self) -> u64;
+/// }
+/// impl Seed for u64 {
+///     fn seed(&self) -> u64 { *self }
+/// }
+///
+/// unsafe_marker! {
+///     /// Data to seed an RNG with: secret, so it can only be read once.
+///     pub struct SecretSeed<T: Seed = u64>(T);
+/// }
+///
+/// // SAFETY: an example; this is no secret at all.
+/// let secret: SecretSeed = unsafe { SecretSeed::vouch_for(42) };
+/// let seed = secret.take().seed();
+/// ```
+/// Rust ignores bounds on type aliases, so the bounds go on the hidden
+/// struct's [MarkerData](crate::MarkerData) implementation instead, which
+/// every [SafeHolder] requires: they are checked wherever the marker is used,
+/// e.g. `SecretSeed::vouch_for(1u8)` doesn't compile, since `u8` isn't a
+/// `Seed`.
+///
+/// Only type parameters are supported, and they have to be used by the data:
+/// no lifetimes, no const generics, no `where` clauses (yet).
+///
 /// # Attributes
 ///
 /// - Doc comments, `#[doc(...)]` and `#[deprecated]` go on the marker.
@@ -243,32 +274,36 @@ macro_rules! unsafe_marker {
         }
     };
 
-    // The struct itself. Defaults: not readable, not writable, not
-    // permanent, Send, Sync.
+    // The struct itself, described as {marker-attrs both-attrs struct-attrs
+    // [vis] name [fields] [generics]}. Defaults: not readable, not writable,
+    // not permanent, Send, Sync.
     (@attrs $m:tt $b:tt $h:tt $v:vis struct $name:ident $(;)?) => {
         $crate::unsafe_marker! {
-            @bounds {$m $b $h [$v] $name []} [false false false true true]
+            @bounds {$m $b $h [$v] $name [] []} [false false false true true]
         }
     };
     (@attrs $m:tt $b:tt $h:tt $v:vis struct $name:ident : $($bounds:tt)+) => {
         $crate::unsafe_marker! {
-            @bounds {$m $b $h [$v] $name []} [false false false true true]
+            @bounds {$m $b $h [$v] $name [] []} [false false false true true]
             $($bounds)+
         }
     };
     (@attrs $m:tt $b:tt $h:tt
         $v:vis struct $name:ident ($($fields:tt)*) $(;)?) => {
         $crate::unsafe_marker! {
-            @bounds {$m $b $h [$v] $name [$($fields)*]}
+            @bounds {$m $b $h [$v] $name [$($fields)*] []}
             [false false false true true]
         }
     };
     (@attrs $m:tt $b:tt $h:tt
         $v:vis struct $name:ident ($($fields:tt)*) : $($bounds:tt)+) => {
         $crate::unsafe_marker! {
-            @bounds {$m $b $h [$v] $name [$($fields)*]}
+            @bounds {$m $b $h [$v] $name [$($fields)*] []}
             [false false false true true] $($bounds)+
         }
+    };
+    (@attrs $m:tt $b:tt $h:tt $v:vis struct $name:ident < $($rest:tt)*) => {
+        $crate::unsafe_marker! { @generics {$m $b $h [$v] $name} [] $($rest)* }
     };
     // The deprecated form without `struct`, as readable as it always was.
     (@attrs $m:tt $b:tt $h:tt $v:vis $name:ident) => {
@@ -282,7 +317,7 @@ macro_rules! unsafe_marker {
             $name
         };
         $crate::unsafe_marker! {
-            @data {$m $b $h [$v] $name []} [] [true false false]
+            @data {$m $b $h [$v] $name [] []} [] [true false false]
         }
     };
     (@attrs $m:tt $b:tt $h:tt $($rest:tt)*) => {
@@ -290,6 +325,140 @@ macro_rules! unsafe_marker {
             "expected a marker like `pub struct Name;` or \
              `pub struct Name(Type);`, optionally followed by bounds, like \
              `pub struct Name: readable + !Sync;`"
+        );
+    };
+
+    // Generic parameters, up to the closing `>`, collected as
+    // [{name [trait bounds] [= default]} ...]. Only type parameters are
+    // supported. Bounds and defaults can hold `<...>` themselves, so their
+    // nesting is counted, as [x x ...].
+    (@generics $d:tt [$($g:tt)+] > $($rest:tt)*) => {
+        $crate::unsafe_marker! { @after_generics $d [$($g)+] $($rest)* }
+    };
+    (@generics $d:tt $g:tt $lt:lifetime $($rest:tt)*) => {
+        ::core::compile_error!(
+            "lifetime parameters aren't supported by `unsafe_marker!` yet"
+        );
+    };
+    (@generics $d:tt $g:tt const $($rest:tt)*) => {
+        ::core::compile_error!(
+            "const generic parameters aren't supported by `unsafe_marker!` yet"
+        );
+    };
+    (@generics $d:tt $g:tt $p:ident : $($rest:tt)*) => {
+        $crate::unsafe_marker! { @bound $d $g $p [] [] $($rest)* }
+    };
+    (@generics $d:tt $g:tt $p:ident $($rest:tt)*) => {
+        $crate::unsafe_marker! { @bound $d $g $p [] [] $($rest)* }
+    };
+    (@generics $d:tt $g:tt $($rest:tt)*) => {
+        ::core::compile_error!(
+            "expected a generic type parameter, like `T`, `T: Trait` or \
+             `T = u8`"
+        );
+    };
+
+    // The bounds of a parameter: [bounds so far] [nesting].
+    (@bound $d:tt [$($g:tt)*] $p:ident [$($b:tt)*] [] , $($rest:tt)*) => {
+        $crate::unsafe_marker! {
+            @generics $d [$($g)* {$p [$($b)*] []}] $($rest)*
+        }
+    };
+    (@bound $d:tt [$($g:tt)*] $p:ident [$($b:tt)*] [] > $($rest:tt)*) => {
+        $crate::unsafe_marker! {
+            @after_generics $d [$($g)* {$p [$($b)*] []}] $($rest)*
+        }
+    };
+    (@bound $d:tt $g:tt $p:ident $b:tt [] = $($rest:tt)*) => {
+        $crate::unsafe_marker! { @default $d $g $p $b [] [] $($rest)* }
+    };
+    (@bound $d:tt $g:tt $p:ident [$($b:tt)*] [$($x:tt)*] < $($rest:tt)*) => {
+        $crate::unsafe_marker! { @bound $d $g $p [$($b)* <] [x $($x)*] $($rest)* }
+    };
+    (@bound $d:tt $g:tt $p:ident [$($b:tt)*] [x $($x:tt)*] > $($rest:tt)*) => {
+        $crate::unsafe_marker! { @bound $d $g $p [$($b)* >] [$($x)*] $($rest)* }
+    };
+    // `>>` is a single token: closing two levels, or one and the parameters.
+    (@bound $d:tt $g:tt $p:ident [$($b:tt)*] [x x $($x:tt)*]
+        >> $($rest:tt)*) => {
+        $crate::unsafe_marker! { @bound $d $g $p [$($b)* >>] [$($x)*] $($rest)* }
+    };
+    (@bound $d:tt [$($g:tt)*] $p:ident [$($b:tt)*] [x] >> $($rest:tt)*) => {
+        $crate::unsafe_marker! {
+            @after_generics $d [$($g)* {$p [$($b)* >] []}] $($rest)*
+        }
+    };
+    (@bound $d:tt $g:tt $p:ident [$($b:tt)*] $x:tt $t:tt $($rest:tt)*) => {
+        $crate::unsafe_marker! { @bound $d $g $p [$($b)* $t] $x $($rest)* }
+    };
+    (@bound $($rest:tt)*) => {
+        ::core::compile_error!("expected `>` after the generic parameters");
+    };
+
+    // The default of a parameter: [default so far] [nesting].
+    (@default $d:tt [$($g:tt)*] $p:ident $b:tt [$($v:tt)*] []
+        , $($rest:tt)*) => {
+        $crate::unsafe_marker! {
+            @generics $d [$($g)* {$p $b [= $($v)*]}] $($rest)*
+        }
+    };
+    (@default $d:tt [$($g:tt)*] $p:ident $b:tt [$($v:tt)*] []
+        > $($rest:tt)*) => {
+        $crate::unsafe_marker! {
+            @after_generics $d [$($g)* {$p $b [= $($v)*]}] $($rest)*
+        }
+    };
+    (@default $d:tt $g:tt $p:ident $b:tt [$($v:tt)*] [$($x:tt)*]
+        < $($rest:tt)*) => {
+        $crate::unsafe_marker! {
+            @default $d $g $p $b [$($v)* <] [x $($x)*] $($rest)*
+        }
+    };
+    (@default $d:tt $g:tt $p:ident $b:tt [$($v:tt)*] [x $($x:tt)*]
+        > $($rest:tt)*) => {
+        $crate::unsafe_marker! {
+            @default $d $g $p $b [$($v)* >] [$($x)*] $($rest)*
+        }
+    };
+    (@default $d:tt $g:tt $p:ident $b:tt [$($v:tt)*] [x x $($x:tt)*]
+        >> $($rest:tt)*) => {
+        $crate::unsafe_marker! {
+            @default $d $g $p $b [$($v)* >>] [$($x)*] $($rest)*
+        }
+    };
+    (@default $d:tt [$($g:tt)*] $p:ident $b:tt [$($v:tt)*] [x]
+        >> $($rest:tt)*) => {
+        $crate::unsafe_marker! {
+            @after_generics $d [$($g)* {$p $b [= $($v)* >]}] $($rest)*
+        }
+    };
+    (@default $d:tt $g:tt $p:ident $b:tt [$($v:tt)*] $x:tt
+        $t:tt $($rest:tt)*) => {
+        $crate::unsafe_marker! { @default $d $g $p $b [$($v)* $t] $x $($rest)* }
+    };
+    (@default $($rest:tt)*) => {
+        ::core::compile_error!("expected `>` after the generic parameters");
+    };
+
+    // After the generics: a generic marker needs data using its parameters.
+    (@after_generics {$m:tt $b:tt $h:tt $v:tt $name:ident} $g:tt
+        ($($fields:tt)+) $(;)?) => {
+        $crate::unsafe_marker! {
+            @bounds {$m $b $h $v $name [$($fields)+] $g}
+            [false false false true true]
+        }
+    };
+    (@after_generics {$m:tt $b:tt $h:tt $v:tt $name:ident} $g:tt
+        ($($fields:tt)+) : $($bounds:tt)+) => {
+        $crate::unsafe_marker! {
+            @bounds {$m $b $h $v $name [$($fields)+] $g}
+            [false false false true true] $($bounds)+
+        }
+    };
+    (@after_generics $d:tt $g:tt $($rest:tt)*) => {
+        ::core::compile_error!(
+            "a generic marker needs data that uses its parameters, like \
+             `pub struct Secret<T>(T);`"
         );
     };
 
@@ -368,7 +537,7 @@ macro_rules! unsafe_marker {
              another thread, through a shared reference"
         );
     };
-    (@check {$m:tt $b:tt $h:tt $v:tt $name:ident []}
+    (@check {$m:tt $b:tt $h:tt $v:tt $name:ident [] $g:tt}
         [$r:tt true $p:tt $s:tt $y:tt]) => {
         ::core::compile_error!(
             "a marker without data can't be `writable`: there is nothing to \
@@ -408,10 +577,10 @@ macro_rules! unsafe_marker {
     };
 
     // The type of the data: `()`, the one field's type, or a tuple of them.
-    (@data {$m:tt $b:tt $h:tt $v:tt $name:ident []} $t:tt $p:tt) => {
-        $crate::unsafe_marker! { @emit {$m $b $h $v $name} [()] $t $p }
+    (@data {$m:tt $b:tt $h:tt $v:tt $name:ident [] $g:tt} $t:tt $p:tt) => {
+        $crate::unsafe_marker! { @emit {$m $b $h $v $name $g} [()] $t $p }
     };
-    (@data {$m:tt $b:tt $h:tt $v:tt $name:ident [pub $($f:tt)*]}
+    (@data {$m:tt $b:tt $h:tt $v:tt $name:ident [pub $($f:tt)*] $g:tt}
         $t:tt $p:tt) => {
         ::core::compile_error!(
             "the fields of a marker are just types, like \
@@ -419,13 +588,14 @@ macro_rules! unsafe_marker {
              name, so they have no visibility"
         );
     };
-    (@data {$m:tt $b:tt $h:tt $v:tt $name:ident [$f:ty $(,)?]} $t:tt $p:tt) => {
-        $crate::unsafe_marker! { @emit {$m $b $h $v $name} [$f] $t $p }
-    };
-    (@data {$m:tt $b:tt $h:tt $v:tt $name:ident [$f0:ty, $($f:ty),+ $(,)?]}
+    (@data {$m:tt $b:tt $h:tt $v:tt $name:ident [$f:ty $(,)?] $g:tt}
         $t:tt $p:tt) => {
+        $crate::unsafe_marker! { @emit {$m $b $h $v $name $g} [$f] $t $p }
+    };
+    (@data {$m:tt $b:tt $h:tt $v:tt $name:ident [$f0:ty, $($f:ty),+ $(,)?]
+        $g:tt} $t:tt $p:tt) => {
         $crate::unsafe_marker! {
-            @emit {$m $b $h $v $name} [($f0, $($f),+)] $t $p
+            @emit {$m $b $h $v $name $g} [($f0, $($f),+)] $t $p
         }
     };
 
@@ -438,7 +608,7 @@ macro_rules! unsafe_marker {
     // type, not even through a public alias. It is generic over the data, so
     // the data's type is resolved where the user wrote it, and `Clone`/`Copy`
     // follow the data's.
-    (@emit {[$($m:tt)*] [$($b:tt)*] [$($h:tt)*] [$v:vis] $name:ident}
+    (@emit {[$($m:tt)*] [$($b:tt)*] [$($h:tt)*] [$v:vis] $name:ident []}
         [$data:ty] [$($thread:ty)?] [$wo:tt $ro:tt $pe:tt]) => {
         $crate::paste! {
             $($b)*
@@ -484,6 +654,71 @@ macro_rules! unsafe_marker {
             $($b)*
             $($m)*
             $v type $name = $crate::SafeHolder<
+                [<__ $name:snake _ndm>]::[<$name NDM>]<$data>,
+                $wo,
+                $ro,
+                $pe,
+            >;
+        }
+    };
+    // A generic marker. Rust ignores bounds on type aliases, so the alias
+    // only gets the parameters (and their defaults). The bounds go on the
+    // `Bounds` impl instead, which MarkerData - and so `SafeHolder` - requires:
+    // they are checked wherever the marker is used. `Bounds` is implemented
+    // outside of the module, where the marker is written, so the bounds and
+    // the data's type mean what they mean there (even inside a function).
+    (@emit {[$($m:tt)*] [$($b:tt)*] [$($h:tt)*] [$v:vis] $name:ident
+        [$({$p:ident [$($pb:tt)*] [$($pd:tt)*]})+]}
+        [$data:ty] [$($thread:ty)?] [$wo:tt $ro:tt $pe:tt]) => {
+        $crate::paste! {
+            $($b)*
+            #[doc(hidden)]
+            mod [<__ $name:snake _ndm>] {
+                #[derive(Clone, Copy)]
+                $($h)*
+                pub struct [<$name NDM>]<D> {
+                    data: D,
+                    $(_thread: ::core::marker::PhantomData<$thread>,)?
+                }
+
+                /// Implemented for the data the marker's generic bounds
+                /// allow.
+                pub trait Bounds {}
+
+                impl<D> $crate::MarkerData for [<$name NDM>]<D>
+                where
+                    Self: Bounds,
+                {
+                    type Data = D;
+
+                    #[inline(always)]
+                    fn from_data(data: D) -> Self {
+                        Self {
+                            data,
+                            $(_thread: ::core::marker::PhantomData::<$thread>,)?
+                        }
+                    }
+
+                    #[inline(always)]
+                    fn data(&self) -> &D { &self.data }
+
+                    #[inline(always)]
+                    fn data_mut(&mut self) -> &mut D { &mut self.data }
+
+                    #[inline(always)]
+                    fn into_data(self) -> D { self.data }
+                }
+            }
+
+            $($b)*
+            impl<$($p: $($pb)*),+> [<__ $name:snake _ndm>]::Bounds
+                for [<__ $name:snake _ndm>]::[<$name NDM>]<$data>
+            {
+            }
+
+            $($b)*
+            $($m)*
+            $v type $name<$($p $($pd)*),+> = $crate::SafeHolder<
                 [<__ $name:snake _ndm>]::[<$name NDM>]<$data>,
                 $wo,
                 $ro,
@@ -699,6 +934,59 @@ mod tests {
     #[test]
     pub fn cfg_applies_to_the_whole_marker() {
         let _ = unsafe { ConfiguredIn::vouch() };
+    }
+
+    pub trait Seed {
+        fn seed(&self) -> u64;
+    }
+    impl Seed for u64 {
+        fn seed(&self) -> u64 { *self }
+    }
+
+    unsafe_marker! {
+        /// Data to seed an RNG with - only to be read once.
+        pub struct SecretSeed<T: Seed>(T);
+    }
+    unsafe_marker!(struct Unbounded<T>(T): readable);
+    unsafe_marker!(struct WithDefault<T = u8>(T): readable);
+    // Several parameters, `<...>` inside bounds and defaults, and `>>`/`>>>`
+    // tokens closing bounds, defaults and the parameters themselves.
+    unsafe_marker! {
+        struct Nested<U: Into<u64>, T: Into<Option<u8>> + Copy = Option<u8>>(
+            T,
+            U,
+        ): readable + !Sync;
+    }
+    unsafe_marker!(struct ShiftClose<T: Into<u8>>(T): readable);
+    unsafe_marker!(struct ShiftCloseDefault<T = Option<u8>>(T));
+    unsafe_marker!(struct DeepDefault<T = Option<Option<u8>>>(T));
+
+    #[test]
+    pub fn generic_markers_hold_their_parameters() {
+        let seed = unsafe { SecretSeed::vouch_for(42u64) };
+        assert_eq!(seed.take().seed(), 42);
+
+        let text = unsafe { Unbounded::vouch_for("text") };
+        assert_eq!(*text, "text");
+
+        let byte: WithDefault = unsafe { WithDefault::vouch_for(7) };
+        assert_eq!(*byte, 7u8);
+        let wide = unsafe { WithDefault::<u32>::vouch_for(7) };
+        assert_eq!(*wide, 7u32);
+
+        let nested: Nested<u32> = unsafe { Nested::vouch_for((Some(1), 2)) };
+        assert_eq!(*nested, (Some(1), 2));
+
+        let shift = unsafe { ShiftClose::vouch_for(3u8) };
+        assert_eq!(*shift, 3);
+        let shift: ShiftCloseDefault =
+            unsafe { ShiftCloseDefault::vouch_for(None) };
+        assert_eq!(shift.take(), None);
+        let deep: DeepDefault = unsafe { DeepDefault::vouch_for(Some(None)) };
+        assert_eq!(deep.take(), Some(None));
+
+        assert_eq!(params(None::<SecretSeed<u64>>), (true, true, false));
+        assert_eq!(params(None::<Nested<u32>>), (true, false, false));
     }
 
     #[allow(deprecated)]
