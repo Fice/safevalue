@@ -27,9 +27,9 @@ fn main() {
 
 ## Features
 
-[X] Zero Cost Abstraction.
-[X] Ergonomic
-[ ] Good Idea. Well, it works quite nicely in my kernel project, let's see how it goes.
+- [x] Zero Cost Abstraction.
+- [x] Ergonomic
+- [ ] Good Idea. Well, it works quite nicely in my kernel project, let's see how it goes.
 
 ## Dependencies
 
