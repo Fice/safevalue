@@ -1,5 +1,14 @@
 # Migrating
 
+## 0.4.0 -> 0.4.1
+
+Nothing to do: this version only adds features.
+
+- **Generic markers**: markers with data can have type parameters, with
+  bounds and defaults, e.g.
+  `unsafe_marker!(pub struct SecretSeed<T: Seed = u64>(T));`. See the docs of
+  `unsafe_marker!`.
+
 ## 0.3 -> 0.4
 
 `unsafe_marker!` couldn't set the `SafeHolder` parameters (`WRITE_ONCE`,
