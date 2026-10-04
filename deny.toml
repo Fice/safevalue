@@ -1,0 +1,26 @@
+# Configuration for cargo-deny, run by .github/workflows/env.yml.
+# See https://embarkstudios.github.io/cargo-deny/
+
+[graph]
+all-features = true
+
+[advisories]
+# Every advisory (vulnerable, unmaintained, yanked, ...) is an error.
+ignore = []
+
+[licenses]
+# Only licenses compatible with our own (MIT OR Apache-2.0).
+allow = [
+    "MIT",
+    "Apache-2.0",
+]
+confidence-threshold = 0.9
+
+[bans]
+multiple-versions = "warn"
+wildcards = "deny"
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]
