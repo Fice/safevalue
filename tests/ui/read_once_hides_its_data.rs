@@ -7,6 +7,7 @@ type ReadOnce = SafeHolder<u32, true, true>;
 
 fn hash<T: core::hash::Hash>(_: &T) {}
 fn display<T: core::fmt::Display>(_: &T) {}
+fn debug<T: core::fmt::Debug>(_: &T) {}
 
 pub fn main() {
     let readable = unsafe { Readable::vouch_for(1) };
@@ -15,9 +16,11 @@ pub fn main() {
     // these work: the data may be looked at as often as you like
     hash(&readable);
     display(&readable);
+    debug(&readable);
 
     // these fail: hashing or printing would reveal data that may only be
     // read once, through `take`
     hash(&read_once);
     display(&read_once);
+    debug(&read_once);
 }

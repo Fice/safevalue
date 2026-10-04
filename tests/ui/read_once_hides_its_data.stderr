@@ -1,7 +1,7 @@
 error[E0277]: the trait bound `SafeHolder<u32>: Hash` is not satisfied
-  --> tests/ui/read_once_hides_its_data.rs:21:10
+  --> tests/ui/read_once_hides_its_data.rs:23:10
    |
-21 |     hash(&read_once);
+23 |     hash(&read_once);
    |     ---- ^^^^^^^^^^ the trait `Hash` is not implemented for `SafeHolder<u32>`
    |     |
    |     required by a bound introduced by this call
@@ -19,9 +19,9 @@ note: required by a bound in `hash`
    |            ^^^^^^^^^^^^^^^^ required by this bound in `hash`
 
 error[E0277]: `SafeHolder<u32>` doesn't implement `std::fmt::Display`
-  --> tests/ui/read_once_hides_its_data.rs:22:13
+  --> tests/ui/read_once_hides_its_data.rs:24:13
    |
-22 |     display(&read_once);
+24 |     display(&read_once);
    |     ------- ^^^^^^^^^^ the trait `std::fmt::Display` is not implemented for `SafeHolder<u32>`
    |     |
    |     required by a bound introduced by this call
@@ -37,3 +37,23 @@ note: required by a bound in `display`
    |
  9 | fn display<T: core::fmt::Display>(_: &T) {}
    |               ^^^^^^^^^^^^^^^^^^ required by this bound in `display`
+
+error[E0277]: `SafeHolder<u32>` doesn't implement `Debug`
+  --> tests/ui/read_once_hides_its_data.rs:25:11
+   |
+25 |     debug(&read_once);
+   |     ----- ^^^^^^^^^^ the trait `Debug` is not implemented for `SafeHolder<u32>`
+   |     |
+   |     required by a bound introduced by this call
+   |
+help: the trait `Debug` is implemented for `SafeHolder<T, WRITE_ONCE, false, PERMANENT>`
+  --> src/lib.rs
+   |
+   | / impl<T: core::fmt::Debug, const WRITE_ONCE: bool, const PERMANENT: bool>
+   | |     core::fmt::Debug for SafeHolder<T, WRITE_ONCE, false, PERMANENT>
+   | |____________________________________________________________________^
+note: required by a bound in `debug`
+  --> tests/ui/read_once_hides_its_data.rs:10:13
+   |
+10 | fn debug<T: core::fmt::Debug>(_: &T) {}
+   |             ^^^^^^^^^^^^^^^^ required by this bound in `debug`

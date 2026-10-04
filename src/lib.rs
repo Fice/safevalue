@@ -76,7 +76,6 @@ pub trait NonDataMarker {
     const NEW_MARKER: Self;
 }
 
-#[derive(Debug)]
 #[repr(transparent)]
 /// SafeHolder is a struct that vouches for the data within it.
 ///
@@ -427,6 +426,18 @@ impl<T: core::fmt::Binary, const WRITE_ONCE: bool, const PERMANENT: bool>
 {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         core::fmt::Binary::fmt(&self.data, f)
+    }
+}
+/// Prints the same as `#[derive(Debug)]` would - but not for `READ_ONCE`
+/// holders, whose data may only be read once through
+/// [take()](SafeHolder::take).
+impl<T: core::fmt::Debug, const WRITE_ONCE: bool, const PERMANENT: bool>
+    core::fmt::Debug for SafeHolder<T, WRITE_ONCE, false, PERMANENT>
+{
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("SafeHolder")
+            .field("data", &self.data)
+            .finish()
     }
 }
 impl<T: core::fmt::Display, const WRITE_ONCE: bool, const PERMANENT: bool>
