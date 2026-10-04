@@ -429,6 +429,22 @@ impl<T: core::fmt::Binary, const WRITE_ONCE: bool, const PERMANENT: bool>
         core::fmt::Binary::fmt(&self.data, f)
     }
 }
+impl<T: core::fmt::Display, const WRITE_ONCE: bool, const PERMANENT: bool>
+    core::fmt::Display for SafeHolder<T, WRITE_ONCE, false, PERMANENT>
+{
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        core::fmt::Display::fmt(&self.data, f)
+    }
+}
+
+/// Hashes exactly like the contained data, so it agrees with [PartialEq].
+impl<T: core::hash::Hash, const WRITE_ONCE: bool, const PERMANENT: bool>
+    core::hash::Hash for SafeHolder<T, WRITE_ONCE, false, PERMANENT>
+{
+    fn hash<H: core::hash::Hasher>(&self, state: &mut H) {
+        self.data.hash(state)
+    }
+}
 
 /// Especially with empty ```()``` [SafeHolder] you don't really interact with
 /// it directly.
@@ -695,6 +711,18 @@ mod tests {
         let copy = unsafe { safe_u64.clone_unchecked() };
         assert_eq!(copy.take(), 5u64);
         assert_eq!(safe_u64.take(), 5u64);
+    }
+
+    #[test]
+    fn display_and_hash_forward_to_the_data() {
+        extern crate std;
+        use core::hash::BuildHasher;
+
+        let safe_u64 = unsafe { SafeU64::vouch_for(42u64) };
+        assert_eq!(std::format!("{safe_u64}"), "42");
+
+        let hasher = std::hash::RandomState::new();
+        assert_eq!(hasher.hash_one(&safe_u64), hasher.hash_one(42u64));
     }
 
     #[test]

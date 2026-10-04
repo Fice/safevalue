@@ -1,0 +1,39 @@
+error[E0277]: the trait bound `SafeHolder<u32>: Hash` is not satisfied
+  --> tests/ui/read_once_hides_its_data.rs:21:10
+   |
+21 |     hash(&read_once);
+   |     ---- ^^^^^^^^^^ the trait `Hash` is not implemented for `SafeHolder<u32>`
+   |     |
+   |     required by a bound introduced by this call
+   |
+help: the trait `Hash` is implemented for `SafeHolder<T, WRITE_ONCE, false, PERMANENT>`
+  --> src/lib.rs
+   |
+   | / impl<T: core::hash::Hash, const WRITE_ONCE: bool, const PERMANENT: bool>
+   | |     core::hash::Hash for SafeHolder<T, WRITE_ONCE, false, PERMANENT>
+   | |____________________________________________________________________^
+note: required by a bound in `hash`
+  --> tests/ui/read_once_hides_its_data.rs:8:12
+   |
+ 8 | fn hash<T: core::hash::Hash>(_: &T) {}
+   |            ^^^^^^^^^^^^^^^^ required by this bound in `hash`
+
+error[E0277]: `SafeHolder<u32>` doesn't implement `std::fmt::Display`
+  --> tests/ui/read_once_hides_its_data.rs:22:13
+   |
+22 |     display(&read_once);
+   |     ------- ^^^^^^^^^^ the trait `std::fmt::Display` is not implemented for `SafeHolder<u32>`
+   |     |
+   |     required by a bound introduced by this call
+   |
+help: the trait `std::fmt::Display` is implemented for `SafeHolder<T, WRITE_ONCE, false, PERMANENT>`
+  --> src/lib.rs
+   |
+   | / impl<T: core::fmt::Display, const WRITE_ONCE: bool, const PERMANENT: bool>
+   | |     core::fmt::Display for SafeHolder<T, WRITE_ONCE, false, PERMANENT>
+   | |______________________________________________________________________^
+note: required by a bound in `display`
+  --> tests/ui/read_once_hides_its_data.rs:9:15
+   |
+ 9 | fn display<T: core::fmt::Display>(_: &T) {}
+   |               ^^^^^^^^^^^^^^^^^^ required by this bound in `display`
