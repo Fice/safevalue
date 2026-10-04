@@ -31,7 +31,7 @@ error[E0369]: binary operation `==` cannot be applied to type `SafeHolder<char, 
    |                      SafeHolder<char, false>
    |
 note: `SafeHolder<char, false>` does not implement `PartialEq`
-  --> src/lib.rs
+  --> src/holder.rs
    |
    | / pub struct SafeHolder<
    | |     T,
@@ -50,7 +50,7 @@ error[E0369]: binary operation `==` cannot be applied to type `SafeHolder<u32>`
    |                      SafeHolder<u32>
    |
 note: `SafeHolder<u32>` does not implement `PartialEq`
-  --> src/lib.rs
+  --> src/holder.rs
    |
    | / pub struct SafeHolder<
    | |     T,

@@ -17,7 +17,7 @@ note: required because it appears within the type `NotSharedNDM`
  5 | unsafe_marker!(pub struct NotShared: !Sync);
    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 note: required because it appears within the type `SafeHolder<NotSharedNDM>`
-  --> src/lib.rs
+  --> src/holder.rs
    |
    | pub struct SafeHolder<
    |            ^^^^^^^^^^
@@ -47,7 +47,7 @@ note: required because it appears within the type `NotSharedWithDataNDM`
  6 | unsafe_marker!(pub struct NotSharedWithData(u32): !Sync);
    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 note: required because it appears within the type `SafeHolder<NotSharedWithDataNDM>`
-  --> src/lib.rs
+  --> src/holder.rs
    |
    | pub struct SafeHolder<
    |            ^^^^^^^^^^

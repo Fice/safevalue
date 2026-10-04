@@ -7,7 +7,7 @@ error[E0277]: `SafeHolder<ReadOnceNDM>` doesn't implement `Debug`
    |     required by a bound introduced by this call
    |
 help: the trait `Debug` is implemented for `SafeHolder<T, WRITE_ONCE, false, PERMANENT>`
-  --> src/lib.rs
+  --> src/holder.rs
    |
    | / impl<T: core::fmt::Debug, const WRITE_ONCE: bool, const PERMANENT: bool>
    | |     core::fmt::Debug for SafeHolder<T, WRITE_ONCE, false, PERMANENT>

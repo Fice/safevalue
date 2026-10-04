@@ -20,7 +20,7 @@ note: required because it appears within the type `ThisThreadOnlyNDM`
  6 | unsafe_marker!(pub struct ThisThreadOnly: !Send + !Sync);
    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 note: required because it appears within the type `SafeHolder<ThisThreadOnlyNDM>`
-  --> src/lib.rs
+  --> src/holder.rs
    |
    | pub struct SafeHolder<
    |            ^^^^^^^^^^

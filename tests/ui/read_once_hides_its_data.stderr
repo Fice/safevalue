@@ -7,7 +7,7 @@ error[E0277]: the trait bound `SafeHolder<u32>: Hash` is not satisfied
    |     required by a bound introduced by this call
    |
 help: the trait `Hash` is implemented for `SafeHolder<T, WRITE_ONCE, false, PERMANENT>`
-  --> src/lib.rs
+  --> src/holder.rs
    |
    | / impl<T: core::hash::Hash, const WRITE_ONCE: bool, const PERMANENT: bool>
    | |     core::hash::Hash for SafeHolder<T, WRITE_ONCE, false, PERMANENT>
@@ -27,7 +27,7 @@ error[E0277]: `SafeHolder<u32>` doesn't implement `std::fmt::Display`
    |     required by a bound introduced by this call
    |
 help: the trait `std::fmt::Display` is implemented for `SafeHolder<T, WRITE_ONCE, false, PERMANENT>`
-  --> src/lib.rs
+  --> src/holder.rs
    |
    | / impl<T: core::fmt::Display, const WRITE_ONCE: bool, const PERMANENT: bool>
    | |     core::fmt::Display for SafeHolder<T, WRITE_ONCE, false, PERMANENT>
@@ -47,7 +47,7 @@ error[E0277]: `SafeHolder<u32>` doesn't implement `Debug`
    |     required by a bound introduced by this call
    |
 help: the trait `Debug` is implemented for `SafeHolder<T, WRITE_ONCE, false, PERMANENT>`
-  --> src/lib.rs
+  --> src/holder.rs
    |
    | / impl<T: core::fmt::Debug, const WRITE_ONCE: bool, const PERMANENT: bool>
    | |     core::fmt::Debug for SafeHolder<T, WRITE_ONCE, false, PERMANENT>

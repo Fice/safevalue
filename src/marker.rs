@@ -1,0 +1,694 @@
+// Only for the intra-doc links.
+#[cfg(doc)]
+use crate::SafeHolder;
+
+/// Trait implemented for Data Types, that do not actually hold any data.
+///
+/// It is used by the [unsafe_marker](crate::unsafe_marker) macro. It will
+/// expand to something like:
+/// ```
+/// struct FooMarkerUniqueData {}
+///
+/// impl safevalue::NonDataMarker for FooMarkerUniqueData {
+///     const NEW_MARKER: Self = Self {};
+/// }
+///
+///
+/// pub type FooMarker =
+///     safevalue::SafeHolder<FooMarkerUniqueData, true, true, false>;
+/// ```
+/// Note: Try to use [unsafe_marker](crate::unsafe_marker) macro over manually
+/// implementing this.
+///
+/// > Only implement this trait for Types that are distinct (e.g. not `()`) and
+/// > don't hold any
+/// > runtime data, e.g. `struct InterruptsDisabled {}`
+///
+/// ## Why don't we just use ```()```?
+/// If we did, we couldn't distinguish between different Markers.
+/// ```
+/// pub type FooMarker = safevalue::SafeHolder<(), true, false>;
+/// pub type BarMarker = safevalue::SafeHolder<(), true, false>;
+///
+/// pub fn requires_foo(foo_marker: FooMarker) {
+///     foo_marker.take()
+///     // ...
+/// }
+///
+/// pub fn provides_bar() {
+///     // This compiles, even though we are mixing up our SAFETY requirements
+///     requires_foo(unsafe { BarMarker::vouch_for(()) });
+/// }
+/// ```
+/// With a distinct type per marker, the same mix-up doesn't compile:
+/// ```compile_fail,E0308
+/// # use safevalue::unsafe_marker;
+/// unsafe_marker!(pub struct FooMarker);
+/// unsafe_marker!(pub struct BarMarker);
+///
+/// pub fn requires_foo(foo_marker: FooMarker) {
+///     foo_marker.take()
+///     // ...
+/// }
+///
+/// pub fn provides_bar() {
+///     requires_foo(unsafe { BarMarker::vouch() });
+/// }
+/// ```
+pub trait NonDataMarker {
+    /// The value used by [SafeHolder::vouch] to create the [SafeHolder].
+    const NEW_MARKER: Self;
+}
+
+#[doc(alias = "Marker")]
+#[macro_export]
+/// Defines a Marker: a [SafeHolder] type that vouches for a fact (and maybe
+/// carries data along with it), and that can't be mixed up with any other
+/// marker.
+///
+/// ```
+/// # use safevalue::{assert_marker, unsafe_marker};
+/// unsafe_marker! {
+///     /// The page tables are set up.
+///     pub struct PagingEnabled;
+/// }
+///
+/// pub fn map_page(paging_enabled: &PagingEnabled) {
+///     assert_marker(paging_enabled);
+///     // ...
+/// }
+///
+/// // SAFETY: an example; nothing here needs page tables.
+/// let paging_enabled = unsafe { PagingEnabled::vouch() };
+/// map_page(&paging_enabled);
+/// ```
+///
+/// # Why not just `type PagingEnabled = SafeHolder<()>`?
+///
+/// All `SafeHolder<()>` are the same type, so a function asking for one marker
+/// would accept any other (see [NonDataMarker]). Instead, the macro creates a
+/// hidden struct for every marker, and the marker is a [SafeHolder] of it:
+/// ```ignore
+/// #[doc(hidden)]
+/// pub struct PagingEnabledNDM {}
+/// impl safevalue::NonDataMarker for PagingEnabledNDM { /* ... */ }
+///
+/// /// The page tables are set up.
+/// pub type PagingEnabled =
+///     safevalue::SafeHolder<PagingEnabledNDM, true, true, false>;
+/// ```
+///
+/// # Bounds
+///
+/// By default a marker is as restrictive as a [SafeHolder] can be
+/// (`WRITE_ONCE = true`, `READ_ONCE = true`, `PERMANENT = false`). Bounds after
+/// a colon open it up - or keep it on one thread:
+///
+/// | Bound       | Effect |
+/// |-------------|--------|
+/// | `readable`  | `READ_ONCE = false`: [Deref](core::ops::Deref), [Eq], [Ord], [Hash](core::hash::Hash), [Debug](core::fmt::Debug), ... - for those the hidden struct implements |
+/// | `writable`  | `WRITE_ONCE = false`: [set()](SafeHolder::set). Only for markers with data. |
+/// | `permanent` | `PERMANENT = true`: implies `readable`, is [Copy]/[Clone] if the hidden struct is, has no [take()](SafeHolder::take). Can't be `writable`. |
+/// | `!Send + !Sync` | The guarantee only holds on the thread (or CPU core) that vouched for it. |
+/// | `!Sync`     | The marker may be moved to another thread, but not shared with one. |
+///
+/// `!Send` alone is rejected: the marker would still be [Sync], so a shared
+/// reference to it could still reach another thread.
+///
+/// ```
+/// # use safevalue::unsafe_marker;
+/// unsafe_marker! {
+///     /// Interrupts are disabled on this core.
+///     pub struct InterruptsDisabled: !Send + !Sync;
+/// }
+/// ```
+///
+/// Moving such a marker to another thread doesn't compile:
+/// ```compile_fail,E0277
+/// # use safevalue::unsafe_marker;
+/// unsafe_marker!(pub struct ThisThreadOnly: !Send + !Sync);
+///
+/// fn send<T: Send>(_: T) {}
+/// send(unsafe { ThisThreadOnly::vouch() });
+/// ```
+/// and neither does sharing it with one:
+/// ```compile_fail,E0277
+/// # use safevalue::unsafe_marker;
+/// unsafe_marker!(pub struct ThisThreadOnly: !Send + !Sync);
+///
+/// fn sync<T: Sync>() {}
+/// sync::<ThisThreadOnly>();
+/// ```
+///
+/// # Data
+///
+/// A marker can be a tuple struct, vouching for the data in it:
+/// ```
+/// # use safevalue::unsafe_marker;
+/// unsafe_marker! {
+///     /// The number of cores found at boot. It never changes afterwards.
+///     #[derive(Debug, Clone, Copy, PartialEq)]
+///     pub struct CoreCount(pub u32): permanent;
+/// }
+///
+/// // SAFETY: an example; pretend we counted them.
+/// let cores = unsafe { CoreCount::vouch_for(CoreCountNDM::new(4)) };
+/// let also_cores = cores; // permanent: copied, not moved
+/// assert_eq!(cores.0, 4);
+/// assert_eq!(cores, also_cores);
+/// ```
+/// Markers with data are created with [vouch_for()](SafeHolder::vouch_for)
+/// rather than [vouch()](SafeHolder::vouch). The hidden struct gets a
+/// `const fn new`, taking its fields - use it, since `!Send`/`!Sync` add a
+/// field of their own.
+///
+/// # Attributes
+///
+/// - Doc comments, `#[doc(...)]` and `#[deprecated]` go on the marker.
+/// - `#[allow]`, `#[warn]`, `#[deny]`, `#[forbid]` and `#[cfg]` go on both.
+/// - Everything else - `#[derive(...)]`, `#[repr(...)]`, `#[cfg_attr(...)]`,
+///   custom attributes - goes on the hidden struct. The marker gets the derived
+///   traits through [SafeHolder], which implements them for the data it holds
+///   (most of them only when the marker is `readable`).
+///
+/// # Old syntax
+///
+/// `unsafe_marker!(pub Name)`, without `struct`, still works but is
+/// deprecated. It creates a `readable` marker, as it always has - so when
+/// switching, write `pub struct Name: readable;` if you rely on that.
+macro_rules! unsafe_marker {
+    // The public entry point is the last rule; these are internal.
+
+    // Sort the attributes into [marker] [both] [hidden struct].
+    (@attrs [$($m:tt)*] [$($b:tt)*] [$($h:tt)*]
+        #[doc $($a:tt)*] $($rest:tt)*) => {
+        $crate::unsafe_marker! {
+            @attrs [$($m)* #[doc $($a)*]] [$($b)*] [$($h)*] $($rest)*
+        }
+    };
+    (@attrs [$($m:tt)*] [$($b:tt)*] [$($h:tt)*]
+        #[deprecated $($a:tt)*] $($rest:tt)*) => {
+        $crate::unsafe_marker! {
+            @attrs [$($m)* #[deprecated $($a)*]] [$($b)*] [$($h)*] $($rest)*
+        }
+    };
+    (@attrs [$($m:tt)*] [$($b:tt)*] [$($h:tt)*]
+        #[allow $($a:tt)*] $($rest:tt)*) => {
+        $crate::unsafe_marker! {
+            @attrs [$($m)*] [$($b)* #[allow $($a)*]] [$($h)*] $($rest)*
+        }
+    };
+    (@attrs [$($m:tt)*] [$($b:tt)*] [$($h:tt)*]
+        #[warn $($a:tt)*] $($rest:tt)*) => {
+        $crate::unsafe_marker! {
+            @attrs [$($m)*] [$($b)* #[warn $($a)*]] [$($h)*] $($rest)*
+        }
+    };
+    (@attrs [$($m:tt)*] [$($b:tt)*] [$($h:tt)*]
+        #[deny $($a:tt)*] $($rest:tt)*) => {
+        $crate::unsafe_marker! {
+            @attrs [$($m)*] [$($b)* #[deny $($a)*]] [$($h)*] $($rest)*
+        }
+    };
+    (@attrs [$($m:tt)*] [$($b:tt)*] [$($h:tt)*]
+        #[forbid $($a:tt)*] $($rest:tt)*) => {
+        $crate::unsafe_marker! {
+            @attrs [$($m)*] [$($b)* #[forbid $($a)*]] [$($h)*] $($rest)*
+        }
+    };
+    (@attrs [$($m:tt)*] [$($b:tt)*] [$($h:tt)*]
+        #[cfg $($a:tt)*] $($rest:tt)*) => {
+        $crate::unsafe_marker! {
+            @attrs [$($m)*] [$($b)* #[cfg $($a)*]] [$($h)*] $($rest)*
+        }
+    };
+    (@attrs [$($m:tt)*] [$($b:tt)*] [$($h:tt)*]
+        #[$($a:tt)*] $($rest:tt)*) => {
+        $crate::unsafe_marker! {
+            @attrs [$($m)*] [$($b)*] [$($h)* #[$($a)*]] $($rest)*
+        }
+    };
+
+    // The struct itself. Defaults: not readable, not writable, not
+    // permanent, Send, Sync.
+    (@attrs $m:tt $b:tt $h:tt $v:vis struct $name:ident $(;)?) => {
+        $crate::unsafe_marker! {
+            @bounds {$m $b $h [$v] $name []} [false false false true true]
+        }
+    };
+    (@attrs $m:tt $b:tt $h:tt $v:vis struct $name:ident : $($bounds:tt)+) => {
+        $crate::unsafe_marker! {
+            @bounds {$m $b $h [$v] $name []} [false false false true true]
+            $($bounds)+
+        }
+    };
+    (@attrs $m:tt $b:tt $h:tt
+        $v:vis struct $name:ident ($($fields:tt)*) $(;)?) => {
+        $crate::unsafe_marker! {
+            @bounds {$m $b $h [$v] $name [$($fields)*]}
+            [false false false true true]
+        }
+    };
+    (@attrs $m:tt $b:tt $h:tt
+        $v:vis struct $name:ident ($($fields:tt)*) : $($bounds:tt)+) => {
+        $crate::unsafe_marker! {
+            @bounds {$m $b $h [$v] $name [$($fields)*]}
+            [false false false true true] $($bounds)+
+        }
+    };
+    // The deprecated form without `struct`, as readable as it always was.
+    (@attrs $m:tt $b:tt $h:tt $v:vis $name:ident) => {
+        const _: () = {
+            #[deprecated(note = "write `struct` before the marker's name, \
+                e.g. `unsafe_marker!(pub struct Name: readable);` - `readable` \
+                keeps what this form did, new markers are read-once by \
+                default")]
+            #[allow(non_upper_case_globals)]
+            const $name: () = ();
+            $name
+        };
+        $crate::unsafe_marker! {
+            @emit {$m $b $h [$v] $name []} [] [true false false]
+        }
+    };
+    (@attrs $m:tt $b:tt $h:tt $($rest:tt)*) => {
+        ::core::compile_error!(
+            "expected a marker like `pub struct Name;` or \
+             `pub struct Name(Type);`, optionally followed by bounds, like \
+             `pub struct Name: readable + !Sync;`"
+        );
+    };
+
+    // Bounds, as [readable writable permanent Send Sync].
+    (@bounds $d:tt $f:tt $(;)?) => {
+        $crate::unsafe_marker! { @check $d $f }
+    };
+    (@bounds $d:tt [false $w:tt $p:tt $s:tt $y:tt]
+        readable $($rest:tt)*) => {
+        $crate::unsafe_marker! { @sep $d [true $w $p $s $y] $($rest)* }
+    };
+    (@bounds $d:tt [$r:tt false $p:tt $s:tt $y:tt]
+        writable $($rest:tt)*) => {
+        $crate::unsafe_marker! { @sep $d [$r true $p $s $y] $($rest)* }
+    };
+    (@bounds $d:tt [$r:tt $w:tt false $s:tt $y:tt]
+        permanent $($rest:tt)*) => {
+        $crate::unsafe_marker! { @sep $d [$r $w true $s $y] $($rest)* }
+    };
+    (@bounds $d:tt [$r:tt $w:tt $p:tt true $y:tt] !Send $($rest:tt)*) => {
+        $crate::unsafe_marker! { @sep $d [$r $w $p false $y] $($rest)* }
+    };
+    (@bounds $d:tt [$r:tt $w:tt $p:tt $s:tt true] !Sync $($rest:tt)*) => {
+        $crate::unsafe_marker! { @sep $d [$r $w $p $s false] $($rest)* }
+    };
+    (@bounds $d:tt $f:tt readable $($rest:tt)*) => {
+        ::core::compile_error!("`readable` is listed twice");
+    };
+    (@bounds $d:tt $f:tt writable $($rest:tt)*) => {
+        ::core::compile_error!("`writable` is listed twice");
+    };
+    (@bounds $d:tt $f:tt permanent $($rest:tt)*) => {
+        ::core::compile_error!("`permanent` is listed twice");
+    };
+    (@bounds $d:tt $f:tt !Send $($rest:tt)*) => {
+        ::core::compile_error!("`!Send` is listed twice");
+    };
+    (@bounds $d:tt $f:tt !Sync $($rest:tt)*) => {
+        ::core::compile_error!("`!Sync` is listed twice");
+    };
+    (@bounds $d:tt $f:tt ! $other:tt $($rest:tt)*) => {
+        ::core::compile_error!(::core::concat!(
+            "unknown marker bound `!", ::core::stringify!($other), "`, \
+             expected `readable`, `writable`, `permanent`, `!Send` or `!Sync`"
+        ));
+    };
+    (@bounds $d:tt $f:tt $other:tt $($rest:tt)*) => {
+        ::core::compile_error!(::core::concat!(
+            "unknown marker bound `", ::core::stringify!($other), "`, \
+             expected `readable`, `writable`, `permanent`, `!Send` or `!Sync`"
+        ));
+    };
+    (@sep $d:tt $f:tt $(;)?) => {
+        $crate::unsafe_marker! { @check $d $f }
+    };
+    (@sep $d:tt $f:tt + $($rest:tt)+) => {
+        $crate::unsafe_marker! { @bounds $d $f $($rest)+ }
+    };
+    (@sep $d:tt $f:tt $($rest:tt)*) => {
+        ::core::compile_error!(
+            "expected `+` between the bounds of a marker, or `;` after them"
+        );
+    };
+
+    // Reject combinations that make no sense, and turn `!Send`/`!Sync` into
+    // the type of a zero-sized field that takes them away.
+    (@check $d:tt [$r:tt true true $s:tt $y:tt]) => {
+        ::core::compile_error!(
+            "a marker can't be both `permanent` and `writable`: each copy of \
+             it could be `set` to something different"
+        );
+    };
+    (@check $d:tt [$r:tt $w:tt $p:tt false true]) => {
+        ::core::compile_error!(
+            "`!Send` needs `!Sync` as well: a `Sync` marker can still reach \
+             another thread, through a shared reference"
+        );
+    };
+    (@check {$m:tt $b:tt $h:tt $v:tt $name:ident []}
+        [$r:tt true $p:tt $s:tt $y:tt]) => {
+        ::core::compile_error!(
+            "a marker without data can't be `writable`: there is nothing to \
+             `set`"
+        );
+    };
+    (@check $d:tt [$r:tt $w:tt $p:tt true true]) => {
+        $crate::unsafe_marker! { @params $d [] [$r $w $p] }
+    };
+    (@check $d:tt [$r:tt $w:tt $p:tt false false]) => {
+        // `*const ()` is neither `Send` nor `Sync`.
+        $crate::unsafe_marker! { @params $d [*const ()] [$r $w $p] }
+    };
+    (@check $d:tt [$r:tt $w:tt $p:tt true false]) => {
+        // `Cell` is `Send`, but not `Sync`.
+        $crate::unsafe_marker! {
+            @params $d [::core::cell::Cell<()>] [$r $w $p]
+        }
+    };
+
+    // [readable writable permanent] to the SafeHolder's
+    // [WRITE_ONCE READ_ONCE PERMANENT].
+    (@params $d:tt $t:tt [$r:tt false true]) => {
+        $crate::unsafe_marker! { @emit $d $t [true false true] }
+    };
+    (@params $d:tt $t:tt [true false false]) => {
+        $crate::unsafe_marker! { @emit $d $t [true false false] }
+    };
+    (@params $d:tt $t:tt [true true false]) => {
+        $crate::unsafe_marker! { @emit $d $t [false false false] }
+    };
+    (@params $d:tt $t:tt [false false false]) => {
+        $crate::unsafe_marker! { @emit $d $t [true true false] }
+    };
+    (@params $d:tt $t:tt [false true false]) => {
+        $crate::unsafe_marker! { @emit $d $t [false true false] }
+    };
+
+    // A marker without data.
+    (@emit {[$($m:tt)*] [$($b:tt)*] [$($h:tt)*] [$v:vis] $name:ident []}
+        [$($thread:ty)?] [$wo:tt $ro:tt $pe:tt]) => {
+        $crate::paste! {
+            $($b)*
+            #[doc(hidden)]
+            $($h)*
+            $v struct [<$name NDM>] {
+                $(_thread: ::core::marker::PhantomData<$thread>,)?
+            }
+
+            $($b)*
+            impl $crate::NonDataMarker for [<$name NDM>] {
+                const NEW_MARKER: Self = Self {
+                    $(_thread: ::core::marker::PhantomData::<$thread>,)?
+                };
+            }
+
+            $($b)*
+            $($m)*
+            #[allow(private_interfaces)]
+            $v type $name = $crate::SafeHolder<[<$name NDM>], $wo, $ro, $pe>;
+        }
+    };
+    // A marker with data.
+    (@emit {[$($m:tt)*] [$($b:tt)*] [$($h:tt)*] [$v:vis] $name:ident
+        [$($(#[$fa:meta])* $fv:vis $ft:ty),+ $(,)?]}
+        [$($thread:ty)?] [$wo:tt $ro:tt $pe:tt]) => {
+        $crate::paste! {
+            $($b)*
+            #[doc(hidden)]
+            $($h)*
+            $v struct [<$name NDM>](
+                $($(#[$fa])* $fv $ft,)+
+                $(::core::marker::PhantomData<$thread>,)?
+            );
+
+            $($b)*
+            impl [<$name NDM>] {
+                $crate::unsafe_marker! {
+                    @new [$v] [] [] [$($ft),+]
+                    [$(::core::marker::PhantomData::<$thread>)?]
+                }
+            }
+
+            $($b)*
+            $($m)*
+            #[allow(private_interfaces)]
+            $v type $name = $crate::SafeHolder<[<$name NDM>], $wo, $ro, $pe>;
+        }
+    };
+
+    // `new` for a marker with data: one parameter per field. Each `field`
+    // comes from a different expansion of this rule, so hygiene keeps them
+    // apart.
+    (@new [$v:vis] [$($p:tt)*] [$($a:tt)*] [] [$($thread:tt)*]) => {
+        /// Creates the data for the marker. Vouching for it is up to
+        /// `SafeHolder::vouch_for`.
+        #[allow(dead_code, clippy::too_many_arguments)]
+        $v const fn new($($p)*) -> Self { Self($($a)* $($thread)*) }
+    };
+    (@new $v:tt [$($p:tt)*] [$($a:tt)*] [$t:ty $(, $($rest:tt)*)?]
+        $thread:tt) => {
+        $crate::unsafe_marker! {
+            @new $v [$($p)* field: $t,] [$($a)* field,] [$($($rest)*)?]
+            $thread
+        }
+    };
+
+    ($($input:tt)*) => {
+        $crate::unsafe_marker! { @attrs [] [] [] $($input)* }
+    };
+}
+
+#[doc(alias = "Marker")]
+#[macro_export]
+#[deprecated(
+    note = "use `unsafe_marker!(pub struct Name: readable + !Send + !Sync)`"
+)]
+/// Deprecated: use [unsafe_marker](crate::unsafe_marker) with `!Send + !Sync`
+/// instead.
+///
+/// `unsafe_marker_no_send!(pub Name)` is the same as
+/// `unsafe_marker!(pub struct Name: readable + !Send + !Sync)`.
+macro_rules! unsafe_marker_no_send {
+    ($(#[$($attr:tt)*])* $v:vis $i:ident) => {
+        $crate::unsafe_marker! {
+            $(#[$($attr)*])*
+            $v struct $i: readable + !Send + !Sync
+        }
+    };
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{SafeHolder, assert_marker, take_marker};
+
+    unsafe_marker!(struct Test);
+    unsafe_marker!(
+        /// do we have documentation?
+        pub struct Test2;
+    );
+
+    unsafe_marker!(
+        /// do we have documentation?
+        pub struct Test3();
+    );
+    unsafe_marker!(
+        pub struct Test4;
+    );
+
+    unsafe_marker! {
+        pub struct SafeMarker
+    }
+
+    #[test]
+    pub fn test_marker() {
+        let mut _marker = unsafe { SafeMarker::vouch() };
+
+        let marker = unsafe { Test::vouch() };
+        let marker2 = unsafe { Test2::vouch() };
+        let marker3 = unsafe { Test3::vouch() };
+        let _marker4 = unsafe { Test4::vouch() };
+
+        let _ = marker.trust();
+        let _ = marker.take();
+
+        if marker2.trust() {
+            // we can use this in if
+        }
+
+        marker3.rely_on();
+    }
+
+    unsafe_marker!(struct NoSend: !Send + !Sync);
+    unsafe_marker!(
+        /// do we have documentation?
+        pub struct NoSend2: !Sync + !Send;
+    );
+    unsafe_marker!(pub struct NoSend3: !Send + !Sync + readable;);
+
+    #[test]
+    pub fn test_no_send_marker() {
+        let marker = unsafe { NoSend::vouch() };
+        let marker2 = unsafe { NoSend2::vouch() };
+        let marker3 = unsafe { NoSend3::vouch() };
+
+        assert_marker(&marker);
+        let _ = marker.trust();
+        take_marker(marker);
+
+        if marker2.trust() {
+            // we can use this in if
+        }
+
+        marker3.rely_on();
+        let _ = marker3.take();
+    }
+
+    #[test]
+    pub fn no_send_markers_are_zero_sized() {
+        assert_eq!(core::mem::size_of::<NoSend>(), 0);
+        assert_eq!(core::mem::size_of::<SafeMarker>(), 0);
+    }
+
+    #[test]
+    pub fn only_ordinary_markers_are_send_and_sync() {
+        fn send_sync<T: Send + Sync>() {}
+        // The counterpart - `NoSend` being neither - is checked by the
+        // compile-fail tests (tests/ui/no_send_marker_*.rs).
+        send_sync::<SafeMarker>();
+    }
+
+    unsafe_marker!(struct NoShare: !Sync);
+
+    #[test]
+    pub fn not_sync_markers_may_still_move() {
+        fn send<T: Send>() {}
+        // ... but not be shared, see tests/ui/marker_bounds_restrict_threads.rs
+        send::<NoShare>();
+        assert_eq!(core::mem::size_of::<NoShare>(), 0);
+    }
+
+    /// The parameters of the SafeHolder a marker is, as
+    /// (WRITE_ONCE, READ_ONCE, PERMANENT).
+    fn params<
+        T,
+        const WRITE_ONCE: bool,
+        const READ_ONCE: bool,
+        const PERMANENT: bool,
+    >(
+        _: Option<SafeHolder<T, WRITE_ONCE, READ_ONCE, PERMANENT>>,
+    ) -> (bool, bool, bool) {
+        (WRITE_ONCE, READ_ONCE, PERMANENT)
+    }
+
+    unsafe_marker!(struct Restrictive);
+    unsafe_marker!(struct Readable: readable);
+    unsafe_marker!(struct Permanent: permanent);
+    unsafe_marker!(struct ReadablePermanent: readable + permanent);
+    unsafe_marker!(#[allow(dead_code)] struct Writable(u8): writable);
+    unsafe_marker!(#[allow(dead_code)] struct ReadWrite(u8): writable + readable);
+    unsafe_marker! {
+        #[allow(dead_code)]
+        struct Everything(u8): readable + writable + !Send + !Sync;
+    }
+
+    #[test]
+    pub fn bounds_open_up_the_most_restrictive_default() {
+        assert_eq!(params(None::<Restrictive>), (true, true, false));
+        assert_eq!(params(None::<Readable>), (true, false, false));
+        assert_eq!(params(None::<Permanent>), (true, false, true));
+        assert_eq!(params(None::<ReadablePermanent>), (true, false, true));
+        assert_eq!(params(None::<Writable>), (false, true, false));
+        assert_eq!(params(None::<ReadWrite>), (false, false, false));
+        assert_eq!(params(None::<Everything>), (false, false, false));
+    }
+
+    unsafe_marker! {
+        /// A marker with data.
+        #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+        #[repr(C)]
+        pub struct CoreCount(pub u32): permanent;
+    }
+    unsafe_marker! {
+        #[derive(Debug, PartialEq)]
+        struct Region(
+            /// start
+            pub usize,
+            pub(crate) usize,
+        ): readable + writable + !Send + !Sync;
+    }
+
+    #[test]
+    pub fn markers_can_hold_data() {
+        let cores = unsafe { CoreCount::vouch_for(CoreCountNDM::new(4)) };
+        let copied = cores;
+        assert_eq!(cores, copied);
+        assert_eq!(cores.0, 4);
+        assert_eq!(core::mem::size_of::<CoreCount>(), 4);
+
+        let mut region =
+            unsafe { Region::vouch_for(RegionNDM::new(0x1000, 0x2000)) };
+        unsafe { region.set(RegionNDM::new(0x3000, 0x4000)) };
+        assert_eq!((region.0, region.1), (0x3000, 0x4000));
+        assert_eq!(*region, RegionNDM::new(0x3000, 0x4000));
+        assert_eq!(core::mem::size_of::<Region>(), 2 * 8);
+    }
+
+    #[test]
+    pub fn derives_reach_readable_markers() {
+        extern crate std;
+        let cores = unsafe { CoreCount::vouch_for(CoreCountNDM::new(2)) };
+        assert_eq!(
+            std::format!("{cores:?}"),
+            "SafeHolder { data: CoreCountNDM(2) }"
+        );
+    }
+
+    // `cfg` has to reach the generated impls too, or this wouldn't compile.
+    unsafe_marker! {
+        #[cfg(any())]
+        #[derive(Debug)]
+        pub struct ConfiguredAway(u32): readable;
+    }
+    unsafe_marker! {
+        #[allow(dead_code)]
+        #[cfg(all())]
+        pub struct ConfiguredIn;
+    }
+
+    #[test]
+    pub fn cfg_applies_to_the_whole_marker() {
+        let _ = unsafe { ConfiguredIn::vouch() };
+    }
+
+    #[allow(deprecated)]
+    mod old_syntax {
+        unsafe_marker!(OldMarker);
+        unsafe_marker!(
+            /// do we have documentation?
+            pub OldMarker2
+        );
+        unsafe_marker_no_send!(
+            /// do we have documentation?
+            pub OldNoSend
+        );
+
+        #[test]
+        pub fn still_works_and_is_as_readable_as_before() {
+            use super::params;
+            assert_eq!(params(None::<OldMarker>), (true, false, false));
+            assert_eq!(params(None::<OldMarker2>), (true, false, false));
+            assert_eq!(params(None::<OldNoSend>), (true, false, false));
+            let _ = unsafe { OldMarker::vouch() };
+            let _ = unsafe { OldNoSend::vouch() };
+        }
+    }
+}
