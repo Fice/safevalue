@@ -14,8 +14,21 @@ description = "A value based approach to uphold SAFETY requirements for unsafe R
 exclude = [".github"]
 rust-version = "1.85"
 
+[workspace]
+members = ["safevalue-derive"]
+
+[features]
+# MarkerData for alloc's types: String, Vec, Box, Rc, Arc, collections, ...
+alloc = []
+# MarkerData for std's types as well: HashMap, HashSet, PathBuf, OsString.
+std = ["alloc"]
+
 [dependencies]
 pastey = "0.2.3"
+safevalue-derive = { version = "=0.4.0", path = "safevalue-derive" }
 
 [dev-dependencies]
 trybuild = "1.0.121"
+
+[package.metadata.docs.rs]
+all-features = true

@@ -1,0 +1,14 @@
+error[E0603]: module `__secret_ndm` is private
+  --> tests/ui/marker_internals_are_hidden.rs:18:22
+   |
+18 |     let _ = markers::__secret_ndm::SecretNDM { data: 1 };
+   |                      ^^^^^^^^^^^^  --------- struct `SecretNDM` is not publicly re-exported
+   |                      |
+   |                      private module
+   |
+note: the module `__secret_ndm` is defined here
+  --> tests/ui/marker_internals_are_hidden.rs:7:5
+   |
+ 7 |     unsafe_marker!(pub struct Secret(u32): readable);
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   = note: this error originates in the macro `$crate::unsafe_marker` which comes from the expansion of the macro `unsafe_marker` (in Nightly builds, run with -Z macro-backtrace for more info)

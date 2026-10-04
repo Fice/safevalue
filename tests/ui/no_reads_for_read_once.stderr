@@ -34,7 +34,7 @@ note: `SafeHolder<char, false>` does not implement `PartialEq`
   --> src/holder.rs
    |
    | / pub struct SafeHolder<
-   | |     T,
+   | |     T: MarkerData,
    | |     const WRITE_ONCE: bool = true,
    | |     const READ_ONCE: bool = true,
    | |     const PERMANENT: bool = false,
@@ -53,7 +53,7 @@ note: `SafeHolder<u32>` does not implement `PartialEq`
   --> src/holder.rs
    |
    | / pub struct SafeHolder<
-   | |     T,
+   | |     T: MarkerData,
    | |     const WRITE_ONCE: bool = true,
    | |     const READ_ONCE: bool = true,
    | |     const PERMANENT: bool = false,

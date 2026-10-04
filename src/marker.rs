@@ -2,27 +2,14 @@
 #[cfg(doc)]
 use crate::SafeHolder;
 
-/// Trait implemented for Data Types, that do not actually hold any data.
+/// A [MarkerData](crate::MarkerData) type without any data, so a [SafeHolder]
+/// of it can be created out of nothing, with [vouch()](SafeHolder::vouch).
 ///
-/// It is used by the [unsafe_marker](crate::unsafe_marker) macro. It will
-/// expand to something like:
-/// ```
-/// struct FooMarkerUniqueData {}
+/// [unsafe_marker](crate::unsafe_marker) implements it for the markers it
+/// creates without data - use that rather than implementing it by hand.
 ///
-/// impl safevalue::NonDataMarker for FooMarkerUniqueData {
-///     const NEW_MARKER: Self = Self {};
-/// }
-///
-///
-/// pub type FooMarker =
-///     safevalue::SafeHolder<FooMarkerUniqueData, true, true, false>;
-/// ```
-/// Note: Try to use [unsafe_marker](crate::unsafe_marker) macro over manually
-/// implementing this.
-///
-/// > Only implement this trait for Types that are distinct (e.g. not `()`) and
-/// > don't hold any
-/// > runtime data, e.g. `struct InterruptsDisabled {}`
+/// > Only implement this trait for types that are distinct (e.g. not `()`), so
+/// > that different markers can't be mixed up.
 ///
 /// ## Why don't we just use ```()```?
 /// If we did, we couldn't distinguish between different Markers.
@@ -87,16 +74,34 @@ pub trait NonDataMarker {
 ///
 /// All `SafeHolder<()>` are the same type, so a function asking for one marker
 /// would accept any other (see [NonDataMarker]). Instead, the macro creates a
-/// hidden struct for every marker, and the marker is a [SafeHolder] of it:
+/// hidden struct for every marker, which only wraps the marker's data, and the
+/// marker is a [SafeHolder] of it:
 /// ```ignore
 /// #[doc(hidden)]
-/// pub struct PagingEnabledNDM {}
-/// impl safevalue::NonDataMarker for PagingEnabledNDM { /* ... */ }
+/// mod __paging_enabled_ndm {
+///     pub struct PagingEnabledNDM<D> { data: D }
+///     impl<D> safevalue::MarkerData for PagingEnabledNDM<D> {
+///         type Data = D;
+///         // ...
+///     }
+///     impl safevalue::NonDataMarker for PagingEnabledNDM<()> { /* ... */ }
+/// }
 ///
 /// /// The page tables are set up.
-/// pub type PagingEnabled =
-///     safevalue::SafeHolder<PagingEnabledNDM, true, true, false>;
+/// pub type PagingEnabled = safevalue::SafeHolder<
+///     __paging_enabled_ndm::PagingEnabledNDM<()>,
+///     true,
+///     true,
+///     false,
+/// >;
 /// ```
+/// The struct is an implementation detail: outside of where the marker is
+/// defined it can't be named, and nowhere can it be built or read, since its
+/// field is private to its own module. It hands out the data it wraps (see
+/// [MarkerData](crate::MarkerData)), so it never shows up in the marker's API
+/// either: [vouch_for()](SafeHolder::vouch_for), [take()](SafeHolder::take),
+/// [set()](SafeHolder::set) and [Deref](core::ops::Deref) all work with the
+/// data itself.
 ///
 /// # Bounds
 ///
@@ -106,9 +111,9 @@ pub trait NonDataMarker {
 ///
 /// | Bound       | Effect |
 /// |-------------|--------|
-/// | `readable`  | `READ_ONCE = false`: [Deref](core::ops::Deref), [Eq], [Ord], [Hash](core::hash::Hash), [Debug](core::fmt::Debug), ... - for those the hidden struct implements |
+/// | `readable`  | `READ_ONCE = false`: [Deref](core::ops::Deref), [Eq], [Ord], [Hash](core::hash::Hash), [Debug](core::fmt::Debug), ... - for those the data implements |
 /// | `writable`  | `WRITE_ONCE = false`: [set()](SafeHolder::set). Only for markers with data. |
-/// | `permanent` | `PERMANENT = true`: implies `readable`, is [Copy]/[Clone] if the hidden struct is, has no [take()](SafeHolder::take). Can't be `writable`. |
+/// | `permanent` | `PERMANENT = true`: implies `readable`, is [Copy]/[Clone] if the data is, has no [take()](SafeHolder::take). Can't be `writable`. |
 /// | `!Send + !Sync` | The guarantee only holds on the thread (or CPU core) that vouched for it. |
 /// | `!Sync`     | The marker may be moved to another thread, but not shared with one. |
 ///
@@ -142,34 +147,43 @@ pub trait NonDataMarker {
 ///
 /// # Data
 ///
-/// A marker can be a tuple struct, vouching for the data in it:
+/// A marker can be a tuple struct, vouching for data. With one field, the data
+/// is of that field's type; with several, it is a tuple of them:
 /// ```
 /// # use safevalue::unsafe_marker;
 /// unsafe_marker! {
 ///     /// The number of cores found at boot. It never changes afterwards.
-///     #[derive(Debug, Clone, Copy, PartialEq)]
-///     pub struct CoreCount(pub u32): permanent;
+///     pub struct CoreCount(u32): permanent;
+/// }
+/// unsafe_marker! {
+///     /// Physical memory nobody else uses: start and length.
+///     pub struct FreeRegion(usize, usize);
 /// }
 ///
 /// // SAFETY: an example; pretend we counted them.
-/// let cores = unsafe { CoreCount::vouch_for(CoreCountNDM::new(4)) };
+/// let cores = unsafe { CoreCount::vouch_for(4) };
 /// let also_cores = cores; // permanent: copied, not moved
-/// assert_eq!(cores.0, 4);
+/// assert_eq!(*cores, 4);
 /// assert_eq!(cores, also_cores);
+///
+/// // SAFETY: an example; pretend we looked it up.
+/// let region = unsafe { FreeRegion::vouch_for((0x1000, 0x2000)) };
+/// let (start, length) = region.take();
 /// ```
 /// Markers with data are created with [vouch_for()](SafeHolder::vouch_for)
-/// rather than [vouch()](SafeHolder::vouch). The hidden struct gets a
-/// `const fn new`, taking its fields - use it, since `!Send`/`!Sync` add a
-/// field of their own.
+/// rather than [vouch()](SafeHolder::vouch). Like for every [SafeHolder],
+/// traits such as `Debug`, `Eq` or `Hash` come from the data - most of them
+/// only when the marker is `readable`. For your own types,
+/// `#[derive(MarkerData)]` them (see [MarkerData](crate::MarkerData)).
 ///
 /// # Attributes
 ///
 /// - Doc comments, `#[doc(...)]` and `#[deprecated]` go on the marker.
 /// - `#[allow]`, `#[warn]`, `#[deny]`, `#[forbid]` and `#[cfg]` go on both.
-/// - Everything else - `#[derive(...)]`, `#[repr(...)]`, `#[cfg_attr(...)]`,
-///   custom attributes - goes on the hidden struct. The marker gets the derived
-///   traits through [SafeHolder], which implements them for the data it holds
-///   (most of them only when the marker is `readable`).
+/// - Everything else - `#[cfg_attr(...)]`, custom attributes - goes on the
+///   hidden struct. It already has `Clone` and `Copy` (when the data has them),
+///   and the marker's other traits come from the data, so derives aren't needed
+///   there.
 ///
 /// # Old syntax
 ///
@@ -268,7 +282,7 @@ macro_rules! unsafe_marker {
             $name
         };
         $crate::unsafe_marker! {
-            @emit {$m $b $h [$v] $name []} [] [true false false]
+            @data {$m $b $h [$v] $name []} [] [true false false]
         }
     };
     (@attrs $m:tt $b:tt $h:tt $($rest:tt)*) => {
@@ -378,87 +392,103 @@ macro_rules! unsafe_marker {
     // [readable writable permanent] to the SafeHolder's
     // [WRITE_ONCE READ_ONCE PERMANENT].
     (@params $d:tt $t:tt [$r:tt false true]) => {
-        $crate::unsafe_marker! { @emit $d $t [true false true] }
+        $crate::unsafe_marker! { @data $d $t [true false true] }
     };
     (@params $d:tt $t:tt [true false false]) => {
-        $crate::unsafe_marker! { @emit $d $t [true false false] }
+        $crate::unsafe_marker! { @data $d $t [true false false] }
     };
     (@params $d:tt $t:tt [true true false]) => {
-        $crate::unsafe_marker! { @emit $d $t [false false false] }
+        $crate::unsafe_marker! { @data $d $t [false false false] }
     };
     (@params $d:tt $t:tt [false false false]) => {
-        $crate::unsafe_marker! { @emit $d $t [true true false] }
+        $crate::unsafe_marker! { @data $d $t [true true false] }
     };
     (@params $d:tt $t:tt [false true false]) => {
-        $crate::unsafe_marker! { @emit $d $t [false true false] }
+        $crate::unsafe_marker! { @data $d $t [false true false] }
     };
 
-    // A marker without data.
-    (@emit {[$($m:tt)*] [$($b:tt)*] [$($h:tt)*] [$v:vis] $name:ident []}
-        [$($thread:ty)?] [$wo:tt $ro:tt $pe:tt]) => {
-        $crate::paste! {
-            $($b)*
-            #[doc(hidden)]
-            $($h)*
-            $v struct [<$name NDM>] {
-                $(_thread: ::core::marker::PhantomData<$thread>,)?
-            }
-
-            $($b)*
-            impl $crate::NonDataMarker for [<$name NDM>] {
-                const NEW_MARKER: Self = Self {
-                    $(_thread: ::core::marker::PhantomData::<$thread>,)?
-                };
-            }
-
-            $($b)*
-            $($m)*
-            #[allow(private_interfaces)]
-            $v type $name = $crate::SafeHolder<[<$name NDM>], $wo, $ro, $pe>;
+    // The type of the data: `()`, the one field's type, or a tuple of them.
+    (@data {$m:tt $b:tt $h:tt $v:tt $name:ident []} $t:tt $p:tt) => {
+        $crate::unsafe_marker! { @emit {$m $b $h $v $name} [()] $t $p }
+    };
+    (@data {$m:tt $b:tt $h:tt $v:tt $name:ident [pub $($f:tt)*]}
+        $t:tt $p:tt) => {
+        ::core::compile_error!(
+            "the fields of a marker are just types, like \
+             `pub struct Region(usize, usize);` - they aren't accessed by \
+             name, so they have no visibility"
+        );
+    };
+    (@data {$m:tt $b:tt $h:tt $v:tt $name:ident [$f:ty $(,)?]} $t:tt $p:tt) => {
+        $crate::unsafe_marker! { @emit {$m $b $h $v $name} [$f] $t $p }
+    };
+    (@data {$m:tt $b:tt $h:tt $v:tt $name:ident [$f0:ty, $($f:ty),+ $(,)?]}
+        $t:tt $p:tt) => {
+        $crate::unsafe_marker! {
+            @emit {$m $b $h $v $name} [($f0, $($f),+)] $t $p
         }
     };
-    // A marker with data.
-    (@emit {[$($m:tt)*] [$($b:tt)*] [$($h:tt)*] [$v:vis] $name:ident
-        [$($(#[$fa:meta])* $fv:vis $ft:ty),+ $(,)?]}
-        [$($thread:ty)?] [$wo:tt $ro:tt $pe:tt]) => {
+
+    // The hidden struct only makes the marker a distinct type, and hands out
+    // the data through MarkerData. It lives in a private module of its own:
+    // - outside of where the marker is defined, it can't even be named;
+    // - where it is defined, it can be named, but neither built nor read,
+    //   since its field is private to the inner module.
+    // The struct itself is `pub`: other crates can't use values of a private
+    // type, not even through a public alias. It is generic over the data, so
+    // the data's type is resolved where the user wrote it, and `Clone`/`Copy`
+    // follow the data's.
+    (@emit {[$($m:tt)*] [$($b:tt)*] [$($h:tt)*] [$v:vis] $name:ident}
+        [$data:ty] [$($thread:ty)?] [$wo:tt $ro:tt $pe:tt]) => {
         $crate::paste! {
             $($b)*
             #[doc(hidden)]
-            $($h)*
-            $v struct [<$name NDM>](
-                $($(#[$fa])* $fv $ft,)+
-                $(::core::marker::PhantomData<$thread>,)?
-            );
+            mod [<__ $name:snake _ndm>] {
+                #[derive(Clone, Copy)]
+                $($h)*
+                pub struct [<$name NDM>]<D> {
+                    data: D,
+                    $(_thread: ::core::marker::PhantomData<$thread>,)?
+                }
 
-            $($b)*
-            impl [<$name NDM>] {
-                $crate::unsafe_marker! {
-                    @new [$v] [] [] [$($ft),+]
-                    [$(::core::marker::PhantomData::<$thread>)?]
+                impl<D> $crate::MarkerData for [<$name NDM>]<D> {
+                    type Data = D;
+
+                    #[inline(always)]
+                    fn from_data(data: D) -> Self {
+                        Self {
+                            data,
+                            $(_thread: ::core::marker::PhantomData::<$thread>,)?
+                        }
+                    }
+
+                    #[inline(always)]
+                    fn data(&self) -> &D { &self.data }
+
+                    #[inline(always)]
+                    fn data_mut(&mut self) -> &mut D { &mut self.data }
+
+                    #[inline(always)]
+                    fn into_data(self) -> D { self.data }
+                }
+
+                // Only used by markers without data, for `vouch()`.
+                impl $crate::NonDataMarker for [<$name NDM>]<()> {
+                    const NEW_MARKER: Self = Self {
+                        data: (),
+                        $(_thread: ::core::marker::PhantomData::<$thread>,)?
+                    };
                 }
             }
 
             $($b)*
             $($m)*
-            #[allow(private_interfaces)]
-            $v type $name = $crate::SafeHolder<[<$name NDM>], $wo, $ro, $pe>;
-        }
-    };
-
-    // `new` for a marker with data: one parameter per field. Each `field`
-    // comes from a different expansion of this rule, so hygiene keeps them
-    // apart.
-    (@new [$v:vis] [$($p:tt)*] [$($a:tt)*] [] [$($thread:tt)*]) => {
-        /// Creates the data for the marker. Vouching for it is up to
-        /// `SafeHolder::vouch_for`.
-        #[allow(dead_code, clippy::too_many_arguments)]
-        $v const fn new($($p)*) -> Self { Self($($a)* $($thread)*) }
-    };
-    (@new $v:tt [$($p:tt)*] [$($a:tt)*] [$t:ty $(, $($rest:tt)*)?]
-        $thread:tt) => {
-        $crate::unsafe_marker! {
-            @new $v [$($p)* field: $t,] [$($a)* field,] [$($($rest)*)?]
-            $thread
+            $v type $name = $crate::SafeHolder<
+                [<__ $name:snake _ndm>]::[<$name NDM>]<$data>,
+                $wo,
+                $ro,
+                $pe,
+            >;
         }
     };
 
@@ -518,7 +548,7 @@ mod tests {
         let _marker4 = unsafe { Test4::vouch() };
 
         let _ = marker.trust();
-        let _ = marker.take();
+        marker.invalidate();
 
         if marker2.trust() {
             // we can use this in if
@@ -549,7 +579,7 @@ mod tests {
         }
 
         marker3.rely_on();
-        let _ = marker3.take();
+        marker3.invalidate();
     }
 
     #[test]
@@ -579,7 +609,7 @@ mod tests {
     /// The parameters of the SafeHolder a marker is, as
     /// (WRITE_ONCE, READ_ONCE, PERMANENT).
     fn params<
-        T,
+        T: crate::MarkerData,
         const WRITE_ONCE: bool,
         const READ_ONCE: bool,
         const PERMANENT: bool,
@@ -613,43 +643,45 @@ mod tests {
 
     unsafe_marker! {
         /// A marker with data.
-        #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
         #[repr(C)]
-        pub struct CoreCount(pub u32): permanent;
+        pub struct CoreCount(u32): permanent;
     }
     unsafe_marker! {
-        #[derive(Debug, PartialEq)]
-        struct Region(
-            /// start
-            pub usize,
-            pub(crate) usize,
-        ): readable + writable + !Send + !Sync;
+        struct Region(usize, usize,): readable + writable + !Send + !Sync;
+    }
+    unsafe_marker! {
+        struct Secret(u64);
     }
 
     #[test]
-    pub fn markers_can_hold_data() {
-        let cores = unsafe { CoreCount::vouch_for(CoreCountNDM::new(4)) };
+    pub fn markers_hand_out_the_raw_data() {
+        let cores = unsafe { CoreCount::vouch_for(4) };
         let copied = cores;
         assert_eq!(cores, copied);
-        assert_eq!(cores.0, 4);
+        assert_eq!(*cores, 4);
+        assert_eq!(*cores + 1, 5);
         assert_eq!(core::mem::size_of::<CoreCount>(), 4);
 
-        let mut region =
-            unsafe { Region::vouch_for(RegionNDM::new(0x1000, 0x2000)) };
-        unsafe { region.set(RegionNDM::new(0x3000, 0x4000)) };
+        let mut region = unsafe { Region::vouch_for((0x1000, 0x2000)) };
+        unsafe { region.set((0x3000, 0x4000)) };
         assert_eq!((region.0, region.1), (0x3000, 0x4000));
-        assert_eq!(*region, RegionNDM::new(0x3000, 0x4000));
+        assert_eq!(*region, (0x3000, 0x4000));
         assert_eq!(core::mem::size_of::<Region>(), 2 * 8);
+
+        let secret: u64 = unsafe { Secret::vouch_for(42) }.take();
+        assert_eq!(secret, 42);
     }
 
     #[test]
-    pub fn derives_reach_readable_markers() {
+    pub fn readable_markers_forward_the_datas_traits() {
         extern crate std;
-        let cores = unsafe { CoreCount::vouch_for(CoreCountNDM::new(2)) };
-        assert_eq!(
-            std::format!("{cores:?}"),
-            "SafeHolder { data: CoreCountNDM(2) }"
-        );
+        use core::hash::BuildHasher;
+
+        let cores = unsafe { CoreCount::vouch_for(2) };
+        assert_eq!(std::format!("{cores:?}"), "SafeHolder { data: 2 }");
+        assert_eq!(std::format!("{cores} {cores:x}"), "2 2");
+        let hasher = std::hash::RandomState::new();
+        assert_eq!(hasher.hash_one(cores), hasher.hash_one(2u32));
     }
 
     // `cfg` has to reach the generated impls too, or this wouldn't compile.

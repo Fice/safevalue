@@ -1,6 +1,5 @@
-use crate::NonDataMarker;
+use crate::{MarkerData, NonDataMarker};
 
-#[repr(transparent)]
 /// SafeHolder is a struct that vouches for the data within it.
 ///
 /// Although it is common to have a SafeHolder vouching for () with a different
@@ -31,8 +30,8 @@ use crate::NonDataMarker;
 /// first constructed.
 ///
 /// ```
-/// # use safevalue::SafeHolder;
-/// #[derive(Clone, Copy)]
+/// # use safevalue::{MarkerData, SafeHolder};
+/// #[derive(Clone, Copy, MarkerData)]
 /// struct CpuCount(u32);
 ///
 /// // SAFETY: the number of cores found at boot never changes afterwards - and that is
@@ -61,18 +60,24 @@ use crate::NonDataMarker;
 /// // a permanent, but write-many holder
 /// let _ = unsafe { SafeHolder::<u32, false, false, true>::vouch_for(4) };
 /// ```
+#[repr(transparent)]
 pub struct SafeHolder<
-    T,
+    T: MarkerData,
     const WRITE_ONCE: bool = true,
     const READ_ONCE: bool = true,
     const PERMANENT: bool = false,
 > {
-    /// Holds the actual data we are vouching for.
+    /// Holds the actual data we are vouching for - handed out only through
+    /// [MarkerData].
     data: T,
 }
 
-impl<T, const WRITE_ONCE: bool, const READ_ONCE: bool, const PERMANENT: bool>
-    SafeHolder<T, WRITE_ONCE, READ_ONCE, PERMANENT>
+impl<
+    T: MarkerData,
+    const WRITE_ONCE: bool,
+    const READ_ONCE: bool,
+    const PERMANENT: bool,
+> SafeHolder<T, WRITE_ONCE, READ_ONCE, PERMANENT>
 {
     /// Evaluated (at compile time) whenever a holder is constructed, so a
     /// combination of parameters that doesn't make sense can never exist -
@@ -97,13 +102,15 @@ impl<T, const WRITE_ONCE: bool, const READ_ONCE: bool, const PERMANENT: bool>
     ///   never expire, whatever happens to any copy of the holder afterwards.
     #[inline(always)]
     #[must_use]
-    pub const unsafe fn vouch_for(data: T) -> Self {
+    pub unsafe fn vouch_for(data: T::Data) -> Self {
         let () = Self::VALID;
-        Self { data }
+        Self {
+            data: T::from_data(data),
+        }
     }
 }
 
-impl<T, const WRITE_ONCE: bool, const READ_ONCE: bool>
+impl<T: MarkerData, const WRITE_ONCE: bool, const READ_ONCE: bool>
     SafeHolder<T, WRITE_ONCE, READ_ONCE, false>
 {
     /// Consumes the `SafeHolder` and returns the value contained in it.
@@ -113,8 +120,9 @@ impl<T, const WRITE_ONCE: bool, const READ_ONCE: bool>
     /// address. Once we found it, we assign that memory address to a specif
     /// process. Obviously, now that memory is no longer free and available.
     /// ```
-    /// # use safevalue::SafeHolder;
+    /// # use safevalue::{MarkerData, SafeHolder};
     ///
+    /// #[derive(MarkerData)]
     /// struct FreeMemoryPointer(*const u8);
     /// // This should be a doccomment, but rustdoc dos not allow it in here.
     /// // # SAFETY
@@ -136,7 +144,7 @@ impl<T, const WRITE_ONCE: bool, const READ_ONCE: bool>
     /// SAFETY guarantee without the need to access the data.
     #[inline(always)]
     #[must_use]
-    pub fn take(self) -> T { self.data }
+    pub fn take(self) -> T::Data { self.data.into_data() }
 
     /// If you perform an operations that invalidates the SAFETY guarantee you
     /// should invalidate.
@@ -152,8 +160,12 @@ impl<T, const WRITE_ONCE: bool, const READ_ONCE: bool>
     pub fn invalidate(self) {}
 }
 
-impl<T, const WRITE_ONCE: bool, const READ_ONCE: bool, const PERMANENT: bool>
-    SafeHolder<T, WRITE_ONCE, READ_ONCE, PERMANENT>
+impl<
+    T: MarkerData,
+    const WRITE_ONCE: bool,
+    const READ_ONCE: bool,
+    const PERMANENT: bool,
+> SafeHolder<T, WRITE_ONCE, READ_ONCE, PERMANENT>
 {
     /// A function indicating that the current code piece is relying on the
     /// given SAFETY guarantees.
@@ -163,7 +175,8 @@ impl<T, const WRITE_ONCE: bool, const READ_ONCE: bool, const PERMANENT: bool>
     ///
     /// # The Problem
     /// ```
-    /// # use safevalue::SafeHolder;
+    /// # use safevalue::{MarkerData, SafeHolder};
+    /// # #[derive(MarkerData)]
     /// # struct Foo {}
     /// pub fn foo(guarantee: SafeHolder<Foo, true, true>) {
     ///
@@ -185,7 +198,8 @@ impl<T, const WRITE_ONCE: bool, const READ_ONCE: bool, const PERMANENT: bool>
     ///
     /// This is where [rely_on()](SafeHolder::rely_on) comes in:
     /// ```
-    /// # use safevalue::SafeHolder;
+    /// # use safevalue::{MarkerData, SafeHolder};
+    /// # #[derive(MarkerData)]
     /// # struct Foo {}
     /// pub fn foo(guarantee: SafeHolder<Foo, true, true>) {
     ///     guarantee.rely_on();
@@ -216,7 +230,11 @@ impl<T, const WRITE_ONCE: bool, const READ_ONCE: bool, const PERMANENT: bool>
     pub const fn trust(&self) -> bool { true }
 }
 
-impl<T: Clone, const WRITE_ONCE: bool> SafeHolder<T, WRITE_ONCE, false, false> {
+impl<T: MarkerData, const WRITE_ONCE: bool>
+    SafeHolder<T, WRITE_ONCE, false, false>
+where
+    T::Data: Clone,
+{
     /// Creates a copy of the SafeHolder and its data
     ///
     /// Not called `clone`: an inherent method with that name would shadow
@@ -231,7 +249,7 @@ impl<T: Clone, const WRITE_ONCE: bool> SafeHolder<T, WRITE_ONCE, false, false> {
     /// [invalidate()](Self::invalidate) will only consum one of the copies.
     pub unsafe fn clone_unchecked(&self) -> Self {
         Self {
-            data: self.data.clone(),
+            data: T::from_data(self.data.data().clone()),
         }
     }
 }
@@ -239,18 +257,24 @@ impl<T: Clone, const WRITE_ONCE: bool> SafeHolder<T, WRITE_ONCE, false, false> {
 /// Copies of a permanent guarantee - see [SafeHolder]'s docs. There is no
 /// `take` or `invalidate` on these, so nothing can claim to have used one of
 /// the copies up.
-impl<T: Clone> Clone for SafeHolder<T, true, false, true> {
+impl<T: MarkerData> Clone for SafeHolder<T, true, false, true>
+where
+    T::Data: Clone,
+{
     fn clone(&self) -> Self {
         Self {
-            data: self.data.clone(),
+            data: T::from_data(self.data.data().clone()),
         }
     }
 }
 
-impl<T: Copy> Copy for SafeHolder<T, true, false, true> {}
+impl<T: MarkerData + Copy> Copy for SafeHolder<T, true, false, true> where
+    T::Data: Clone
+{
+}
 
 impl<
-    T: NonDataMarker,
+    T: MarkerData + NonDataMarker,
     const WRITE_ONCE: bool,
     const READ_ONCE: bool,
     const PERMANENT: bool,
@@ -274,7 +298,9 @@ impl<
         }
     }
 }
-impl<T, const READ_ONCE: bool> SafeHolder<T, false, READ_ONCE, false> {
+impl<T: MarkerData, const READ_ONCE: bool>
+    SafeHolder<T, false, READ_ONCE, false>
+{
     /// When `WRITE_ONCE` is false, you can use set to change the data vouched
     /// for.
     ///
@@ -286,98 +312,114 @@ impl<T, const READ_ONCE: bool> SafeHolder<T, false, READ_ONCE, false> {
     /// # SAFETY
     /// - See SAFETY requirements of `T`
     #[inline(always)]
-    pub unsafe fn set(&mut self, data: T) { self.data = data; }
+    pub unsafe fn set(&mut self, data: T::Data) { self.data.set_data(data); }
 }
 
-impl<T, const WRITE_ONCE: bool, const PERMANENT: bool> AsRef<T>
-    for SafeHolder<T, WRITE_ONCE, false, PERMANENT>
+impl<T: MarkerData, const WRITE_ONCE: bool, const PERMANENT: bool>
+    AsRef<T::Data> for SafeHolder<T, WRITE_ONCE, false, PERMANENT>
 {
-    fn as_ref(&self) -> &T {
-        use core::ops::Deref;
-        self.deref()
-    }
+    fn as_ref(&self) -> &T::Data { self.data.data() }
 }
 
-impl<T, const WRITE_ONCE: bool, const PERMANENT: bool> core::ops::Deref
-    for SafeHolder<T, WRITE_ONCE, false, PERMANENT>
+impl<T: MarkerData, const WRITE_ONCE: bool, const PERMANENT: bool>
+    core::ops::Deref for SafeHolder<T, WRITE_ONCE, false, PERMANENT>
 {
-    type Target = T;
+    type Target = T::Data;
 
-    fn deref(&self) -> &Self::Target { &self.data }
+    fn deref(&self) -> &Self::Target { self.data.data() }
 }
 
-impl<T: Eq, const WRITE_ONCE: bool, const PERMANENT: bool> Eq
+impl<T: MarkerData, const WRITE_ONCE: bool, const PERMANENT: bool> Eq
     for SafeHolder<T, WRITE_ONCE, false, PERMANENT>
+where
+    T::Data: Eq,
 {
 }
-impl<T: PartialEq, const WRITE_ONCE: bool, const PERMANENT: bool> PartialEq
+impl<T: MarkerData, const WRITE_ONCE: bool, const PERMANENT: bool> PartialEq
     for SafeHolder<T, WRITE_ONCE, false, PERMANENT>
+where
+    T::Data: PartialEq,
 {
-    fn eq(&self, other: &Self) -> bool { self.data == other.data }
+    fn eq(&self, other: &Self) -> bool { self.data.data() == other.data.data() }
 }
 
-impl<T: Ord, const WRITE_ONCE: bool, const PERMANENT: bool> Ord
+impl<T: MarkerData, const WRITE_ONCE: bool, const PERMANENT: bool> Ord
     for SafeHolder<T, WRITE_ONCE, false, PERMANENT>
+where
+    T::Data: Ord,
 {
     fn cmp(&self, other: &Self) -> core::cmp::Ordering {
-        self.data.cmp(&other.data)
+        self.data.data().cmp(other.data.data())
     }
 }
-impl<T: PartialOrd, const WRITE_ONCE: bool, const PERMANENT: bool> PartialOrd
+impl<T: MarkerData, const WRITE_ONCE: bool, const PERMANENT: bool> PartialOrd
     for SafeHolder<T, WRITE_ONCE, false, PERMANENT>
+where
+    T::Data: PartialOrd,
 {
     fn partial_cmp(&self, other: &Self) -> Option<core::cmp::Ordering> {
-        self.data.partial_cmp(&other.data)
+        self.data.data().partial_cmp(other.data.data())
     }
 }
 
-impl<T: core::fmt::UpperHex, const WRITE_ONCE: bool, const PERMANENT: bool>
+impl<T: MarkerData, const WRITE_ONCE: bool, const PERMANENT: bool>
     core::fmt::UpperHex for SafeHolder<T, WRITE_ONCE, false, PERMANENT>
+where
+    T::Data: core::fmt::UpperHex,
 {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        core::fmt::UpperHex::fmt(&self.data, f)
+        core::fmt::UpperHex::fmt(self.data.data(), f)
     }
 }
-impl<T: core::fmt::LowerHex, const WRITE_ONCE: bool, const PERMANENT: bool>
+impl<T: MarkerData, const WRITE_ONCE: bool, const PERMANENT: bool>
     core::fmt::LowerHex for SafeHolder<T, WRITE_ONCE, false, PERMANENT>
+where
+    T::Data: core::fmt::LowerHex,
 {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        core::fmt::LowerHex::fmt(&self.data, f)
+        core::fmt::LowerHex::fmt(self.data.data(), f)
     }
 }
-impl<T: core::fmt::Binary, const WRITE_ONCE: bool, const PERMANENT: bool>
+impl<T: MarkerData, const WRITE_ONCE: bool, const PERMANENT: bool>
     core::fmt::Binary for SafeHolder<T, WRITE_ONCE, false, PERMANENT>
+where
+    T::Data: core::fmt::Binary,
 {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        core::fmt::Binary::fmt(&self.data, f)
+        core::fmt::Binary::fmt(self.data.data(), f)
     }
 }
-/// Prints the same as `#[derive(Debug)]` would - but not for `READ_ONCE`
-/// holders, whose data may only be read once through
-/// [take()](SafeHolder::take).
-impl<T: core::fmt::Debug, const WRITE_ONCE: bool, const PERMANENT: bool>
+/// Prints `SafeHolder { data: .. }` - but not for `READ_ONCE` holders, whose
+/// data may only be read once through [take()](SafeHolder::take).
+impl<T: MarkerData, const WRITE_ONCE: bool, const PERMANENT: bool>
     core::fmt::Debug for SafeHolder<T, WRITE_ONCE, false, PERMANENT>
+where
+    T::Data: core::fmt::Debug,
 {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         f.debug_struct("SafeHolder")
-            .field("data", &self.data)
+            .field("data", self.data.data())
             .finish()
     }
 }
-impl<T: core::fmt::Display, const WRITE_ONCE: bool, const PERMANENT: bool>
+impl<T: MarkerData, const WRITE_ONCE: bool, const PERMANENT: bool>
     core::fmt::Display for SafeHolder<T, WRITE_ONCE, false, PERMANENT>
+where
+    T::Data: core::fmt::Display,
 {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        core::fmt::Display::fmt(&self.data, f)
+        core::fmt::Display::fmt(self.data.data(), f)
     }
 }
 
 /// Hashes exactly like the contained data, so it agrees with [PartialEq].
-impl<T: core::hash::Hash, const WRITE_ONCE: bool, const PERMANENT: bool>
+impl<T: MarkerData, const WRITE_ONCE: bool, const PERMANENT: bool>
     core::hash::Hash for SafeHolder<T, WRITE_ONCE, false, PERMANENT>
+where
+    T::Data: core::hash::Hash,
 {
     fn hash<H: core::hash::Hasher>(&self, state: &mut H) {
-        self.data.hash(state)
+        self.data.data().hash(state)
     }
 }
 
@@ -385,7 +427,7 @@ impl<T: core::hash::Hash, const WRITE_ONCE: bool, const PERMANENT: bool>
 mod tests {
     use super::*;
 
-    #[derive(Debug, PartialEq, Eq)]
+    #[derive(Debug, PartialEq, Eq, MarkerData)]
     struct Custom {
         c: char,
         b: bool,
@@ -431,7 +473,7 @@ mod tests {
         assert_eq!(*safe_f32.as_ref(), 0.5);
     }
 
-    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, MarkerData)]
     struct Forever(u64);
     type SafeForever = SafeHolder<Forever, true, false, true>;
 

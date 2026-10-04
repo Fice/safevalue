@@ -1,0 +1,18 @@
+[package]
+name = "safevalue-derive"
+version = "0.4.0"
+edition = "2024"
+authors = ["Marcel Lambert <marcel_lambert@ymail.com>"]
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/Fice/safevalue"
+documentation = "https://docs.rs/safevalue"
+description = "Derive macros for safevalue. Use them through the safevalue crate."
+rust-version = "1.85"
+
+[lib]
+proc-macro = true
+
+[dependencies]
+proc-macro2 = "1"
+quote = "1"
+syn = "3"

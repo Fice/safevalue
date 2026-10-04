@@ -19,7 +19,7 @@ jobs:
       - name: Install nightly rustfmt
         run: rustup toolchain install nightly --profile minimal --component rustfmt
       - name: Check formatting
-        run: cargo +nightly fmt --check
+        run: cargo +nightly fmt --all --check
 
   clippy:
     name: clippy
@@ -29,4 +29,4 @@ jobs:
       - name: Install toolchain (from rust-toolchain.toml)
         run: rustup toolchain install
       - name: Run clippy
-        run: cargo clippy --all-targets -- -D warnings
+        run: cargo clippy --workspace --all-targets --all-features -- -D warnings

@@ -19,7 +19,9 @@ jobs:
       # rustc version pinned there.
       - name: Install toolchain (from rust-toolchain.toml)
         run: rustup toolchain install
-      - name: Build
-        run: cargo build --verbose
-      - name: Run unit, doc and compile-fail tests
-        run: cargo test --verbose
+      - name: Build (no_std, without alloc)
+        run: cargo build --workspace --verbose
+      - name: Build (no_std, with alloc)
+        run: cargo build --workspace --features alloc --verbose
+      - name: Run unit, doc and compile-fail tests (all features)
+        run: cargo test --workspace --all-features --verbose

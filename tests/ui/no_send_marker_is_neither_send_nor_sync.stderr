@@ -4,22 +4,22 @@ error[E0277]: `*const ()` cannot be sent between threads safely
 17 |     send(unsafe { ThisThreadOnly::vouch() });
    |     ---- ^^^^^^^^^-----------------------^^
    |     |    |        |
-   |     |    |        this tail expression is of type `SafeHolder<ThisThreadOnlyNDM>`
+   |     |    |        this tail expression is of type `SafeHolder<ThisThreadOnlyNDM<()>>`
    |     |    `*const ()` cannot be sent between threads safely
    |     required by a bound introduced by this call
    |
-   = help: within `SafeHolder<ThisThreadOnlyNDM>`, the trait `Send` is not implemented for `*const ()`
+   = help: within `SafeHolder<ThisThreadOnlyNDM<()>>`, the trait `Send` is not implemented for `*const ()`
 note: required because it appears within the type `PhantomData<*const ()>`
   --> $RUST/core/src/marker.rs
    |
    | pub struct PhantomData<T: PointeeSized>;
    |            ^^^^^^^^^^^
-note: required because it appears within the type `ThisThreadOnlyNDM`
+note: required because it appears within the type `ThisThreadOnlyNDM<()>`
   --> tests/ui/no_send_marker_is_neither_send_nor_sync.rs:6:1
    |
  6 | unsafe_marker!(pub struct ThisThreadOnly: !Send + !Sync);
    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-note: required because it appears within the type `SafeHolder<ThisThreadOnlyNDM>`
+note: required because it appears within the type `SafeHolder<ThisThreadOnlyNDM<()>>`
   --> src/holder.rs
    |
    | pub struct SafeHolder<
@@ -37,18 +37,18 @@ error[E0277]: `*const ()` cannot be shared between threads safely
 18 |     sync::<ThisThreadOnly>();
    |            ^^^^^^^^^^^^^^ `*const ()` cannot be shared between threads safely
    |
-   = help: within `SafeHolder<ThisThreadOnlyNDM>`, the trait `Sync` is not implemented for `*const ()`
+   = help: within `SafeHolder<ThisThreadOnlyNDM<()>>`, the trait `Sync` is not implemented for `*const ()`
 note: required because it appears within the type `PhantomData<*const ()>`
   --> $RUST/core/src/marker.rs
    |
    | pub struct PhantomData<T: PointeeSized>;
    |            ^^^^^^^^^^^
-note: required because it appears within the type `ThisThreadOnlyNDM`
+note: required because it appears within the type `ThisThreadOnlyNDM<()>`
   --> tests/ui/no_send_marker_is_neither_send_nor_sync.rs:6:1
    |
  6 | unsafe_marker!(pub struct ThisThreadOnly: !Send + !Sync);
    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-note: required because it appears within the type `SafeHolder<ThisThreadOnlyNDM>`
+note: required because it appears within the type `SafeHolder<ThisThreadOnlyNDM<()>>`
   --> src/holder.rs
    |
    | pub struct SafeHolder<

@@ -6,23 +6,23 @@ error[E0277]: `*const ()` cannot be shared between threads safely
    |               |
    |               required by a bound introduced by this call
    |
-   = help: within `SafeHolder<ThisThreadOnlyNDM>`, the trait `Sync` is not implemented for `*const ()`
+   = help: within `SafeHolder<ThisThreadOnlyNDM<()>>`, the trait `Sync` is not implemented for `*const ()`
 note: required because it appears within the type `PhantomData<*const ()>`
   --> $RUST/core/src/marker.rs
    |
    | pub struct PhantomData<T: PointeeSized>;
    |            ^^^^^^^^^^^
-note: required because it appears within the type `ThisThreadOnlyNDM`
+note: required because it appears within the type `ThisThreadOnlyNDM<()>`
   --> tests/ui/no_send_marker_cannot_be_shared_with_another_thread.rs:6:1
    |
  6 | unsafe_marker!(pub struct ThisThreadOnly: !Send + !Sync);
    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-note: required because it appears within the type `SafeHolder<ThisThreadOnlyNDM>`
+note: required because it appears within the type `SafeHolder<ThisThreadOnlyNDM<()>>`
   --> src/holder.rs
    |
    | pub struct SafeHolder<
    |            ^^^^^^^^^^
-   = note: required for `&SafeHolder<ThisThreadOnlyNDM>` to implement `Send`
+   = note: required for `&SafeHolder<ThisThreadOnlyNDM<()>>` to implement `Send`
 note: required because it's used within this closure
   --> tests/ui/no_send_marker_cannot_be_shared_with_another_thread.rs:20:21
    |

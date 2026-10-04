@@ -21,4 +21,4 @@ jobs:
       - name: Install toolchain (from rust-toolchain.toml)
         run: rustup toolchain install
       - name: Build docs
-        run: cargo doc --no-deps
+        run: cargo doc --no-deps --workspace --all-features

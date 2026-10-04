@@ -12,6 +12,7 @@
 //! Passing the stick upwards
 //! Everything get unsafe
 //!
+//! #
 //!
 //! # Usage
 //!
@@ -35,11 +36,20 @@
 #![warn(rustdoc::broken_intra_doc_links)]
 #![deny(unsafe_op_in_unsafe_fn)]
 
+// So `::safevalue::...` paths, as #[derive(MarkerData)] generates them, also
+// work inside this crate.
+extern crate self as safevalue;
+
+mod data;
 mod holder;
 mod marker;
 
+pub use data::MarkerData;
 pub use holder::SafeHolder;
 pub use marker::NonDataMarker;
+/// Implements [MarkerData] with the value itself as its
+/// [Data](MarkerData::Data). See [MarkerData].
+pub use safevalue_derive::MarkerData;
 
 /// Especially with empty ```()``` [SafeHolder] you don't really interact with
 /// it directly.
@@ -69,7 +79,7 @@ pub use marker::NonDataMarker;
 /// See also:
 /// If you want to invalidate the marker as well: [take_marker]
 pub const fn assert_marker<
-    T,
+    T: MarkerData,
     const WRITE_ONCE: bool,
     const READ_ONCE: bool,
     const PERMANENT: bool,
@@ -106,7 +116,11 @@ pub const fn assert_marker<
 ///
 /// See also:
 /// If you don't want to invalidate the marker, use: [assert_marker]
-pub fn take_marker<T, const WRITE_ONCE: bool, const READ_ONCE: bool>(
+pub fn take_marker<
+    T: MarkerData,
+    const WRITE_ONCE: bool,
+    const READ_ONCE: bool,
+>(
     #[allow(unused)]
     // Not `PERMANENT` ones: like `take`, this is "I am using this guarantee
     // up".

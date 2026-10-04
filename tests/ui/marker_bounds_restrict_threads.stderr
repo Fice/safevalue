@@ -4,19 +4,19 @@ error[E0277]: `Cell<()>` cannot be shared between threads safely
 17 |     sync::<NotShared>();
    |            ^^^^^^^^^ `Cell<()>` cannot be shared between threads safely
    |
-   = help: within `SafeHolder<NotSharedNDM>`, the trait `Sync` is not implemented for `Cell<()>`
+   = help: within `SafeHolder<NotSharedNDM<()>>`, the trait `Sync` is not implemented for `Cell<()>`
    = note: if you want to do aliasing and mutation between multiple threads, use `std::sync::RwLock`
 note: required because it appears within the type `PhantomData<Cell<()>>`
   --> $RUST/core/src/marker.rs
    |
    | pub struct PhantomData<T: PointeeSized>;
    |            ^^^^^^^^^^^
-note: required because it appears within the type `NotSharedNDM`
+note: required because it appears within the type `NotSharedNDM<()>`
   --> tests/ui/marker_bounds_restrict_threads.rs:5:1
    |
  5 | unsafe_marker!(pub struct NotShared: !Sync);
    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-note: required because it appears within the type `SafeHolder<NotSharedNDM>`
+note: required because it appears within the type `SafeHolder<NotSharedNDM<()>>`
   --> src/holder.rs
    |
    | pub struct SafeHolder<
@@ -34,19 +34,19 @@ error[E0277]: `Cell<()>` cannot be shared between threads safely
 18 |     sync::<NotSharedWithData>();
    |            ^^^^^^^^^^^^^^^^^ `Cell<()>` cannot be shared between threads safely
    |
-   = help: within `SafeHolder<NotSharedWithDataNDM>`, the trait `Sync` is not implemented for `Cell<()>`
+   = help: within `SafeHolder<NotSharedWithDataNDM<u32>>`, the trait `Sync` is not implemented for `Cell<()>`
    = note: if you want to do aliasing and mutation between multiple threads, use `std::sync::RwLock`
 note: required because it appears within the type `PhantomData<Cell<()>>`
   --> $RUST/core/src/marker.rs
    |
    | pub struct PhantomData<T: PointeeSized>;
    |            ^^^^^^^^^^^
-note: required because it appears within the type `NotSharedWithDataNDM`
+note: required because it appears within the type `NotSharedWithDataNDM<u32>`
   --> tests/ui/marker_bounds_restrict_threads.rs:6:1
    |
  6 | unsafe_marker!(pub struct NotSharedWithData(u32): !Sync);
    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-note: required because it appears within the type `SafeHolder<NotSharedWithDataNDM>`
+note: required because it appears within the type `SafeHolder<NotSharedWithDataNDM<u32>>`
   --> src/holder.rs
    |
    | pub struct SafeHolder<
