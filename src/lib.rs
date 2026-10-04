@@ -55,7 +55,7 @@
 ///
 /// ## Why don't we just use ```()```?
 /// If we did, we couldn't distinguish between different Markers.
-/// ```compile_fail
+/// ```
 /// pub type FooMarker = safevalue::SafeHolder<(), true, false>;
 /// pub type BarMarker = safevalue::SafeHolder<(), true, false>;
 ///
@@ -65,10 +65,23 @@
 /// }
 ///
 /// pub fn provides_bar() {
-///     // This works, even though we are mixing up our SAFETY requirements
-///     requires_foo(
-///         unsafe{ BarMarker::vouch()}
-///     );
+///     // This compiles, even though we are mixing up our SAFETY requirements
+///     requires_foo(unsafe { BarMarker::vouch_for(()) });
+/// }
+/// ```
+/// With a distinct type per marker, the same mix-up doesn't compile:
+/// ```compile_fail,E0308
+/// # use safevalue::unsafe_marker;
+/// unsafe_marker!(pub FooMarker);
+/// unsafe_marker!(pub BarMarker);
+///
+/// pub fn requires_foo(foo_marker: FooMarker) {
+///     foo_marker.take()
+///     // ...
+/// }
+///
+/// pub fn provides_bar() {
+///     requires_foo(unsafe { BarMarker::vouch() });
 /// }
 /// ```
 pub trait NonDataMarker {
