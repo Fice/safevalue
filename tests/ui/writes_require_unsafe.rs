@@ -1,14 +1,14 @@
 #![allow(unused)]
 extern crate safevalue;
-use safevalue::{ unsafe_marker, unsafe_marker_no_send, SafeHolder };
+use safevalue::{ unsafe_marker, SafeHolder };
 
 
 type TF = SafeHolder<f32, true, false>;
 type TT = SafeHolder<u32, true, true>;
 type FF = SafeHolder<bool, false, false>;
 type FT = SafeHolder<char, false, true>;
-unsafe_marker!(pub SafeMarker);
-unsafe_marker_no_send!(pub NoSendMarker);
+unsafe_marker!(pub struct SafeMarker);
+unsafe_marker!(pub struct NoSendMarker: !Send + !Sync);
 
 pub fn main() {
     let mut ff = unsafe { FF::vouch_for(true) };

@@ -4,11 +4,11 @@ error[E0277]: `*const ()` cannot be sent between threads safely
 17 |     send(unsafe { ThisThreadOnly::vouch() });
    |     ---- ^^^^^^^^^-----------------------^^
    |     |    |        |
-   |     |    |        this tail expression is of type `SafeHolder<ThisThreadOnlyNDM, true, false>`
+   |     |    |        this tail expression is of type `SafeHolder<ThisThreadOnlyNDM>`
    |     |    `*const ()` cannot be sent between threads safely
    |     required by a bound introduced by this call
    |
-   = help: within `SafeHolder<ThisThreadOnlyNDM, true, false>`, the trait `Send` is not implemented for `*const ()`
+   = help: within `SafeHolder<ThisThreadOnlyNDM>`, the trait `Send` is not implemented for `*const ()`
 note: required because it appears within the type `PhantomData<*const ()>`
   --> $RUST/core/src/marker.rs
    |
@@ -17,9 +17,9 @@ note: required because it appears within the type `PhantomData<*const ()>`
 note: required because it appears within the type `ThisThreadOnlyNDM`
   --> tests/ui/no_send_marker_is_neither_send_nor_sync.rs:6:1
    |
- 6 | unsafe_marker_no_send!(pub ThisThreadOnly);
-   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-note: required because it appears within the type `SafeHolder<ThisThreadOnlyNDM, true, false>`
+ 6 | unsafe_marker!(pub struct ThisThreadOnly: !Send + !Sync);
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+note: required because it appears within the type `SafeHolder<ThisThreadOnlyNDM>`
   --> src/lib.rs
    |
    | pub struct SafeHolder<
@@ -29,7 +29,7 @@ note: required by a bound in `send`
    |
  8 | fn send<T: Send>(_: T) {}
    |            ^^^^ required by this bound in `send`
-   = note: this error originates in the macro `unsafe_marker_no_send` (in Nightly builds, run with -Z macro-backtrace for more info)
+   = note: this error originates in the macro `$crate::unsafe_marker` which comes from the expansion of the macro `unsafe_marker` (in Nightly builds, run with -Z macro-backtrace for more info)
 
 error[E0277]: `*const ()` cannot be shared between threads safely
   --> tests/ui/no_send_marker_is_neither_send_nor_sync.rs:18:12
@@ -37,7 +37,7 @@ error[E0277]: `*const ()` cannot be shared between threads safely
 18 |     sync::<ThisThreadOnly>();
    |            ^^^^^^^^^^^^^^ `*const ()` cannot be shared between threads safely
    |
-   = help: within `SafeHolder<ThisThreadOnlyNDM, true, false>`, the trait `Sync` is not implemented for `*const ()`
+   = help: within `SafeHolder<ThisThreadOnlyNDM>`, the trait `Sync` is not implemented for `*const ()`
 note: required because it appears within the type `PhantomData<*const ()>`
   --> $RUST/core/src/marker.rs
    |
@@ -46,9 +46,9 @@ note: required because it appears within the type `PhantomData<*const ()>`
 note: required because it appears within the type `ThisThreadOnlyNDM`
   --> tests/ui/no_send_marker_is_neither_send_nor_sync.rs:6:1
    |
- 6 | unsafe_marker_no_send!(pub ThisThreadOnly);
-   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-note: required because it appears within the type `SafeHolder<ThisThreadOnlyNDM, true, false>`
+ 6 | unsafe_marker!(pub struct ThisThreadOnly: !Send + !Sync);
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+note: required because it appears within the type `SafeHolder<ThisThreadOnlyNDM>`
   --> src/lib.rs
    |
    | pub struct SafeHolder<
@@ -58,4 +58,4 @@ note: required by a bound in `sync`
    |
  9 | fn sync<T: Sync>() {}
    |            ^^^^ required by this bound in `sync`
-   = note: this error originates in the macro `unsafe_marker_no_send` (in Nightly builds, run with -Z macro-backtrace for more info)
+   = note: this error originates in the macro `$crate::unsafe_marker` which comes from the expansion of the macro `unsafe_marker` (in Nightly builds, run with -Z macro-backtrace for more info)

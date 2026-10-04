@@ -1,0 +1,34 @@
+error[E0277]: `SafeHolder<ReadOnceNDM>` doesn't implement `Debug`
+  --> tests/ui/markers_are_read_once_by_default.rs:25:11
+   |
+25 |     debug(&read_once);
+   |     ----- ^^^^^^^^^^ the trait `Debug` is not implemented for `SafeHolder<ReadOnceNDM>`
+   |     |
+   |     required by a bound introduced by this call
+   |
+help: the trait `Debug` is implemented for `SafeHolder<T, WRITE_ONCE, false, PERMANENT>`
+  --> src/lib.rs
+   |
+   | / impl<T: core::fmt::Debug, const WRITE_ONCE: bool, const PERMANENT: bool>
+   | |     core::fmt::Debug for SafeHolder<T, WRITE_ONCE, false, PERMANENT>
+   | |____________________________________________________________________^
+note: required by a bound in `debug`
+  --> tests/ui/markers_are_read_once_by_default.rs:14:13
+   |
+14 | fn debug<T: core::fmt::Debug>(_: &T) {}
+   |             ^^^^^^^^^^^^^^^^ required by this bound in `debug`
+
+error[E0614]: type `SafeHolder<ReadOnceNDM>` cannot be dereferenced
+  --> tests/ui/markers_are_read_once_by_default.rs:26:13
+   |
+26 |     let _ = *read_once;
+   |             ^^^^^^^^^^ can't be dereferenced
+
+error[E0599]: no method named `set` found for struct `SafeHolder<ReadOnceNDM>` in the current scope
+  --> tests/ui/markers_are_read_once_by_default.rs:29:24
+   |
+29 |     unsafe { read_once.set(ReadOnceNDM::new(2)) };
+   |                        ^^^ method not found in `SafeHolder<ReadOnceNDM>`
+   |
+   = note: the method was found for
+           - `SafeHolder<T, false, READ_ONCE>`

@@ -7,7 +7,7 @@ type TF = SafeHolder<f32, true, false>;
 type FF = SafeHolder<bool, false, false>;
 type TT = SafeHolder<u32, true, true>;
 type FT = SafeHolder<char, false, true>;
-unsafe_marker!(pub SafeMarker);
+unsafe_marker!(pub struct SafeMarker);
 
 pub fn main() {
     let mut ff = unsafe { FF::vouch_for(true) };

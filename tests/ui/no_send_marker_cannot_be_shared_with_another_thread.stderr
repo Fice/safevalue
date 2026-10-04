@@ -6,7 +6,7 @@ error[E0277]: `*const ()` cannot be shared between threads safely
    |               |
    |               required by a bound introduced by this call
    |
-   = help: within `SafeHolder<ThisThreadOnlyNDM, true, false>`, the trait `Sync` is not implemented for `*const ()`
+   = help: within `SafeHolder<ThisThreadOnlyNDM>`, the trait `Sync` is not implemented for `*const ()`
 note: required because it appears within the type `PhantomData<*const ()>`
   --> $RUST/core/src/marker.rs
    |
@@ -15,14 +15,14 @@ note: required because it appears within the type `PhantomData<*const ()>`
 note: required because it appears within the type `ThisThreadOnlyNDM`
   --> tests/ui/no_send_marker_cannot_be_shared_with_another_thread.rs:6:1
    |
- 6 | unsafe_marker_no_send!(pub ThisThreadOnly);
-   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-note: required because it appears within the type `SafeHolder<ThisThreadOnlyNDM, true, false>`
+ 6 | unsafe_marker!(pub struct ThisThreadOnly: !Send + !Sync);
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+note: required because it appears within the type `SafeHolder<ThisThreadOnlyNDM>`
   --> src/lib.rs
    |
    | pub struct SafeHolder<
    |            ^^^^^^^^^^
-   = note: required for `&SafeHolder<ThisThreadOnlyNDM, true, false>` to implement `Send`
+   = note: required for `&SafeHolder<ThisThreadOnlyNDM>` to implement `Send`
 note: required because it's used within this closure
   --> tests/ui/no_send_marker_cannot_be_shared_with_another_thread.rs:20:21
    |
@@ -36,4 +36,4 @@ note: required by a bound in `Scope::<'scope, 'env>::spawn`
    |     where
    |         F: FnOnce() -> T + Send + 'scope,
    |                            ^^^^ required by this bound in `Scope::<'scope, 'env>::spawn`
-   = note: this error originates in the macro `unsafe_marker_no_send` (in Nightly builds, run with -Z macro-backtrace for more info)
+   = note: this error originates in the macro `$crate::unsafe_marker` which comes from the expansion of the macro `unsafe_marker` (in Nightly builds, run with -Z macro-backtrace for more info)

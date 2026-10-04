@@ -1,0 +1,23 @@
+error: use of deprecated macro `unsafe_marker_no_send`: use `unsafe_marker!(pub struct Name: readable + !Send + !Sync)`
+  --> tests/ui/old_marker_syntax_is_deprecated.rs:11:1
+   |
+11 | unsafe_marker_no_send!(pub OldNoSend);
+   | ^^^^^^^^^^^^^^^^^^^^^
+   |
+note: the lint level is defined here
+  --> tests/ui/old_marker_syntax_is_deprecated.rs:1:9
+   |
+ 1 | #![deny(deprecated)]
+   |         ^^^^^^^^^^
+
+error: use of deprecated macro `safevalue::unsafe_marker_no_send`: use `unsafe_marker!(pub struct Name: readable + !Send + !Sync)`
+ --> tests/ui/old_marker_syntax_is_deprecated.rs:4:32
+  |
+4 | use safevalue::{unsafe_marker, unsafe_marker_no_send};
+  |                                ^^^^^^^^^^^^^^^^^^^^^
+
+error: use of deprecated constant `_::OldSyntax`: write `struct` before the marker's name, e.g. `unsafe_marker!(pub struct Name: readable);` - `readable` keeps what this form did, new markers are read-once by default
+  --> tests/ui/old_marker_syntax_is_deprecated.rs:10:20
+   |
+10 | unsafe_marker!(pub OldSyntax);
+   |                    ^^^^^^^^^

@@ -1,0 +1,79 @@
+error: unknown marker bound `sendable`, expected `readable`, `writable`, `permanent`, `!Send` or `!Sync`
+  --> tests/ui/marker_bounds_are_checked.rs:10:1
+   |
+10 | unsafe_marker!(pub struct Unknown: sendable);
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: this error originates in the macro `$crate::unsafe_marker` which comes from the expansion of the macro `unsafe_marker` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error: unknown marker bound `!Copy`, expected `readable`, `writable`, `permanent`, `!Send` or `!Sync`
+  --> tests/ui/marker_bounds_are_checked.rs:11:1
+   |
+11 | unsafe_marker!(pub struct UnknownNegative: !Copy);
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: this error originates in the macro `$crate::unsafe_marker` which comes from the expansion of the macro `unsafe_marker` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error: `readable` is listed twice
+  --> tests/ui/marker_bounds_are_checked.rs:12:1
+   |
+12 | unsafe_marker!(pub struct Twice: readable + readable);
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: this error originates in the macro `$crate::unsafe_marker` which comes from the expansion of the macro `unsafe_marker` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error: expected `+` between the bounds of a marker, or `;` after them
+  --> tests/ui/marker_bounds_are_checked.rs:13:1
+   |
+13 | unsafe_marker!(pub struct NoPlus: readable writable);
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: this error originates in the macro `$crate::unsafe_marker` which comes from the expansion of the macro `unsafe_marker` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error: expected `+` between the bounds of a marker, or `;` after them
+  --> tests/ui/marker_bounds_are_checked.rs:14:1
+   |
+14 | unsafe_marker!(pub struct TrailingPlus: readable +);
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: this error originates in the macro `$crate::unsafe_marker` which comes from the expansion of the macro `unsafe_marker` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error: a marker can't be both `permanent` and `writable`: each copy of it could be `set` to something different
+  --> tests/ui/marker_bounds_are_checked.rs:15:1
+   |
+15 | unsafe_marker!(pub struct PermanentWritable(u32): permanent + writable);
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: this error originates in the macro `$crate::unsafe_marker` which comes from the expansion of the macro `unsafe_marker` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error: `!Send` needs `!Sync` as well: a `Sync` marker can still reach another thread, through a shared reference
+  --> tests/ui/marker_bounds_are_checked.rs:16:1
+   |
+16 | unsafe_marker!(pub struct OnlyNotSend: !Send);
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: this error originates in the macro `$crate::unsafe_marker` which comes from the expansion of the macro `unsafe_marker` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error: a marker without data can't be `writable`: there is nothing to `set`
+  --> tests/ui/marker_bounds_are_checked.rs:17:1
+   |
+17 | unsafe_marker!(pub struct WritableWithoutData: writable);
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: this error originates in the macro `$crate::unsafe_marker` which comes from the expansion of the macro `unsafe_marker` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error: expected a marker like `pub struct Name;` or `pub struct Name(Type);`, optionally followed by bounds, like `pub struct Name: readable + !Sync;`
+  --> tests/ui/marker_bounds_are_checked.rs:18:1
+   |
+18 | unsafe_marker!(pub struct Named { data: u32 });
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: this error originates in the macro `$crate::unsafe_marker` which comes from the expansion of the macro `unsafe_marker` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error: expected a marker like `pub struct Name;` or `pub struct Name(Type);`, optionally followed by bounds, like `pub struct Name: readable + !Sync;`
+  --> tests/ui/marker_bounds_are_checked.rs:19:1
+   |
+19 | unsafe_marker!(pub struct Generic<T>(T));
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: this error originates in the macro `$crate::unsafe_marker` which comes from the expansion of the macro `unsafe_marker` (in Nightly builds, run with -Z macro-backtrace for more info)

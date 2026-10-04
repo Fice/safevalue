@@ -1,9 +1,9 @@
 #![allow(unused)]
 extern crate safevalue;
-use safevalue::{unsafe_marker, unsafe_marker_no_send};
+use safevalue::unsafe_marker;
 
-unsafe_marker!(pub AnyThread);
-unsafe_marker_no_send!(pub ThisThreadOnly);
+unsafe_marker!(pub struct AnyThread);
+unsafe_marker!(pub struct ThisThreadOnly: !Send + !Sync);
 
 pub fn main() {
     // works: an ordinary marker can go to another thread

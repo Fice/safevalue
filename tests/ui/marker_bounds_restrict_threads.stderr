@@ -1,0 +1,59 @@
+error[E0277]: `Cell<()>` cannot be shared between threads safely
+  --> tests/ui/marker_bounds_restrict_threads.rs:17:12
+   |
+17 |     sync::<NotShared>();
+   |            ^^^^^^^^^ `Cell<()>` cannot be shared between threads safely
+   |
+   = help: within `SafeHolder<NotSharedNDM>`, the trait `Sync` is not implemented for `Cell<()>`
+   = note: if you want to do aliasing and mutation between multiple threads, use `std::sync::RwLock`
+note: required because it appears within the type `PhantomData<Cell<()>>`
+  --> $RUST/core/src/marker.rs
+   |
+   | pub struct PhantomData<T: PointeeSized>;
+   |            ^^^^^^^^^^^
+note: required because it appears within the type `NotSharedNDM`
+  --> tests/ui/marker_bounds_restrict_threads.rs:5:1
+   |
+ 5 | unsafe_marker!(pub struct NotShared: !Sync);
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+note: required because it appears within the type `SafeHolder<NotSharedNDM>`
+  --> src/lib.rs
+   |
+   | pub struct SafeHolder<
+   |            ^^^^^^^^^^
+note: required by a bound in `sync`
+  --> tests/ui/marker_bounds_restrict_threads.rs:9:12
+   |
+ 9 | fn sync<T: Sync>() {}
+   |            ^^^^ required by this bound in `sync`
+   = note: this error originates in the macro `$crate::unsafe_marker` which comes from the expansion of the macro `unsafe_marker` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: `Cell<()>` cannot be shared between threads safely
+  --> tests/ui/marker_bounds_restrict_threads.rs:18:12
+   |
+18 |     sync::<NotSharedWithData>();
+   |            ^^^^^^^^^^^^^^^^^ `Cell<()>` cannot be shared between threads safely
+   |
+   = help: within `SafeHolder<NotSharedWithDataNDM>`, the trait `Sync` is not implemented for `Cell<()>`
+   = note: if you want to do aliasing and mutation between multiple threads, use `std::sync::RwLock`
+note: required because it appears within the type `PhantomData<Cell<()>>`
+  --> $RUST/core/src/marker.rs
+   |
+   | pub struct PhantomData<T: PointeeSized>;
+   |            ^^^^^^^^^^^
+note: required because it appears within the type `NotSharedWithDataNDM`
+  --> tests/ui/marker_bounds_restrict_threads.rs:6:1
+   |
+ 6 | unsafe_marker!(pub struct NotSharedWithData(u32): !Sync);
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+note: required because it appears within the type `SafeHolder<NotSharedWithDataNDM>`
+  --> src/lib.rs
+   |
+   | pub struct SafeHolder<
+   |            ^^^^^^^^^^
+note: required by a bound in `sync`
+  --> tests/ui/marker_bounds_restrict_threads.rs:9:12
+   |
+ 9 | fn sync<T: Sync>() {}
+   |            ^^^^ required by this bound in `sync`
+   = note: this error originates in the macro `$crate::unsafe_marker` which comes from the expansion of the macro `unsafe_marker` (in Nightly builds, run with -Z macro-backtrace for more info)
