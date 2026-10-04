@@ -2,9 +2,8 @@
 //! =========
 //!
 //! [![Tests](https://github.com/Fice/safevalue/actions/workflows/tests.yml/badge.svg)](https://github.com/Fice/safevalue/actions/workflows/tests.yml)
-//! [![Code format](https://github.com/Fice/safevalue/actions/workflows/fmt.yml/badge.svg)](https://github.com/Fice/safevalue/actions/workflows/fmt.yml)
+//! [![Clippy + rustfmt](https://github.com/Fice/safevalue/actions/workflows/fmt.yml/badge.svg)](https://github.com/Fice/safevalue/actions/workflows/fmt.yml)
 //! [![Env](https://github.com/Fice/safevalue/actions/workflows/env.yml/badge.svg)](https://github.com/Fice/safevalue/actions/workflows/env.yml)
-//! [![Docs build](https://github.com/Fice/safevalue/actions/workflows/docs.yml/badge.svg)](https://github.com/Fice/safevalue/actions/workflows/docs.yml)
 //! [![Crates.io](https://img.shields.io/crates/v/safevalue.svg)](https://crates.io/crates/safevalue)
 //! [![Documentation](https://docs.rs/safevalue/badge.svg)](https://docs.rs/safevalue)
 //!
