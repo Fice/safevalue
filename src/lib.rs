@@ -7,23 +7,84 @@
 //! [![Crates.io](https://img.shields.io/crates/v/safevalue.svg)](https://crates.io/crates/safevalue)
 //! [![Documentation](https://docs.rs/safevalue/badge.svg)](https://docs.rs/safevalue)
 //!
-//! # Purpose
-//! We have an unsafe functions
-//! Passing the stick upwards
-//! Everything get unsafe
+//! ## Rationale
 //!
-//! #
+//! An `unsafe fn` comes with a safety contract the caller has to uphold, e.g.
+//! "`addr` points to a page nobody else uses". Usually that leaves two options,
+//! and neither is good:
 //!
-//! # Usage
+//! - **Pass the `unsafe` upwards**: every function on the way becomes an
+//!   `unsafe fn` as well, until half the code base is `unsafe` and it no longer
+//!   tells you anything.
+//! - **Wrap the call in an `unsafe` block**: the actual check happened
+//!   somewhere else, maybe in another module, and the `// SAFETY:` comment
+//!   silently goes stale when that code changes.
+//!
+//! `safevalue` turns the contract into a type. `unsafe` is needed exactly where
+//! a decision is made: where you check a value, or decide to trust it, and
+//! vouch for it. From there on the guarantee travels with the value, and all
+//! the code in between stays safe:
+//!
+//! ```rust
+//! use safevalue::unsafe_marker;
+//!
+//! unsafe_marker! {
+//!     /// The page at this address is not used by anybody else.
+//!     pub struct FreePage(usize);
+//! }
+//!
+//! fn find_free_page() -> FreePage {
+//!     let addr = 0x1000; // ... ask the frame allocator
+//!     // SAFETY: the allocator just handed out this page; nobody else has it.
+//!     unsafe { FreePage::vouch_for(addr) }
+//! }
+//!
+//! // A safe function: it can't be called without a `FreePage`, and there is no
+//! // way to get one without `unsafe`.
+//! fn map_into_process(page: FreePage) {
+//!     let addr = page.take(); // the page is used up from here on
+//!     // SAFETY: guaranteed by `FreePage`.
+//!     unsafe { map_page(addr) }
+//! }
+//!
+//! unsafe fn map_page(_addr: usize) {
+//!     // ...
+//! }
+//! ```
 //!
 //!
-//! # Implementation Details
+//! ## Terminology
 //!
-//!
-//! # Terminology
-//! Marker
-//! READ_ONCE,
-//! WRITE_ONCE
+//! - **Guarantee**: a fact that `unsafe` code relies on, e.g. "this page is not
+//!   used by anybody else" - the safety contract of an `unsafe fn`, turned into
+//!   a value.
+//! - **[SafeHolder]**: a value that carries a guarantee about its data. It can
+//!   only be created with `unsafe`, so holding one means someone vouched for
+//!   the guarantee.
+//! - **Vouch**: creating a [SafeHolder], i.e. stating that the guarantee holds
+//!   with [vouch_for()](SafeHolder::vouch_for) for data, or
+//!   [vouch()](SafeHolder::vouch) for a marker without data. This is where the
+//!   `unsafe` (and its `// SAFETY:` comment) belongs.
+//! - **Marker**: a [SafeHolder] type of its own for one guarantee, created with
+//!   [unsafe_marker]. Two markers can't be mixed up, even if they hold the same
+//!   kind of data - or none at all, like "interrupts are disabled".
+//! - **Data**: what a [SafeHolder] hands out, described by [MarkerData] (derive
+//!   it for your own types with `#[derive(MarkerData)]`).
+//! - **Rely on**: using a guarantee without using it up -
+//!   [rely_on()](SafeHolder::rely_on) or [assert_marker].
+//! - **Take / invalidate**: using a guarantee up, because what was vouched for
+//!   is no longer true afterwards - [take()](SafeHolder::take) (to get the
+//!   data), [invalidate()](SafeHolder::invalidate) or [take_marker].
+//! - **`READ_ONCE`**: the data can only be read by
+//!   [take()](SafeHolder::take)ing it, not through [Deref](core::ops::Deref) or
+//!   traits like `Debug` - a marker's default; `readable` lifts it.
+//! - **`WRITE_ONCE`**: the data can't be changed after vouching for it; without
+//!   it, it can be replaced with [set()](SafeHolder::set) - a marker's default;
+//!   `writable` lifts it.
+//! - **`PERMANENT`**: the guarantee can never expire, so the [SafeHolder] is
+//!   `Copy`/`Clone` and can't be taken - a marker's `permanent` bound.
+//! - **Bounds**: `permanent + !Sync` and the like, after the colon in
+//!   [unsafe_marker]. See the 3 definitions above.
 
 //make sure we run the code in the readme.md during testing
 #![cfg_attr(doctest, doc = include_str!("../README.md"))]

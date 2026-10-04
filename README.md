@@ -7,21 +7,11 @@ safevalue
 [![Crates.io](https://img.shields.io/crates/v/safevalue.svg)](https://crates.io/crates/safevalue)
 [![Documentation](https://docs.rs/safevalue/badge.svg)](https://docs.rs/safevalue)
 
-## Usage
+## Installation
 
 Add safevalue to your project e.g. via ```cargo add safevalue```.
 
 Upgrading from an older version? See [MIGRATE.md](MIGRATE.md).
-
-Then:
-
-```rust
-
-
-fn main() {
-    //TODO!
-}
-```
 
 ## Rationale
 
