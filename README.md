@@ -9,6 +9,8 @@ safevalue
 
 Add safevalue to your project e.g. via ```cargo add safevalue```.
 
+Upgrading from an older version? See [MIGRATE.md](MIGRATE.md).
+
 Then:
 
 ```rust
